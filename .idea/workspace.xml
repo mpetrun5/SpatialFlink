@@ -2,8 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1324c6e9-e930-41b7-8e36-209d061d1d70" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -35,15 +39,19 @@
     <option name="version" value="1" />
   </component>
   <component name="ProjectId" id="1YyOR29HT6G1ZaCDz7XGKatnqwC" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../MFBranchGeoFlink/GeoFlink/pom.xml" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/pom.xml" />
     <property name="project.structure.last.edited" value="Project" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.0" />
@@ -99,11 +107,16 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
           </value>
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
   <component name="WindowStateProjectService">
     <state x="777" y="377" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1583995374219">

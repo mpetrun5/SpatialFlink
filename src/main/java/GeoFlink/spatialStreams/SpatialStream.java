@@ -24,7 +24,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.io.Serializable;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 public class SpatialStream implements Serializable {
@@ -39,6 +42,9 @@ public class SpatialStream implements Serializable {
         }
         else if (inputType.equals("CSV")){
             pointStream = inputStream.map(new CSVToSpatial(uGrid));
+        }
+        else if (inputType.equals("GeoJSONEventTime")){
+            pointStream = inputStream.map(new GeoJSONEventTimeToSpatial(uGrid));
         }
 
         return pointStream;
@@ -59,14 +65,39 @@ public class SpatialStream implements Serializable {
         @Override
         public Point map(ObjectNode json) throws Exception {
 
-            String objType = json.get("value").get("geometry").get("type").asText();
+            //String objType = json.get("value").get("geometry").get("type").asText();
             Point spatialPoint = new Point(json.get("value").get("geometry").get("coordinates").get(0).asDouble(), json.get("value").get("geometry").get("coordinates").get(1).asDouble(), uGrid);
 
             return spatialPoint;
         }
     }
 
-    // Assuming that csv string contains objectID, timestamp, longitude, latitude at
+    public static class GeoJSONEventTimeToSpatial extends RichMapFunction<ObjectNode, Point> {
+
+        UniformGrid uGrid;
+        DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+
+        //ctor
+        public  GeoJSONEventTimeToSpatial() {};
+
+        public  GeoJSONEventTimeToSpatial(UniformGrid uGrid)
+        {
+            this.uGrid = uGrid;
+        };
+
+        @Override
+        public Point map(ObjectNode json) throws Exception {
+
+            int trackerID = json.get("value").get("tracker_id").asInt();
+            Date dateTime = simpleDateFormat.parse(json.get("value").get("time").asText());
+            long timeStampMillisec = dateTime.getTime();
+            Point spatialPoint = new Point(trackerID, json.get("value").get("position").get(0).asDouble(), json.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid);
+
+            return spatialPoint;
+        }
+    }
+
+    // Assuming that csv string contains longitude and latitude at positions 0 and 1, respectively
     public static class CSVToSpatial extends RichMapFunction<ObjectNode, Point> {
 
         UniformGrid uGrid;
