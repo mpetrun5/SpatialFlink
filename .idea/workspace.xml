@@ -2,12 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1324c6e9-e930-41b7-8e36-209d061d1d70" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MFKafkaOutputSchema.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -51,7 +49,8 @@
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/pom.xml" />
+    <property name="findjar.last.used.dir" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="project.structure.last.edited" value="Project" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.0" />

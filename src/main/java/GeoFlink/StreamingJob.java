@@ -18,6 +18,7 @@
 
 package GeoFlink;
 
+import GeoFlink.apps.MFKafkaOutputSchema;
 import GeoFlink.apps.MovingFeatures;
 import GeoFlink.spatialIndices.UniformGrid;
 import GeoFlink.spatialObjects.Point;
@@ -27,6 +28,7 @@ import GeoFlink.spatialOperators.RangeQuery;
 import GeoFlink.spatialStreams.SpatialStream;
 import GeoFlink.utils.HelperClass;
 import com.typesafe.config.ConfigException;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -45,15 +47,17 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeW
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.flink.util.Collector;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import scala.Serializable;
 
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Properties;
+import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 /**
  * Skeleton for a Flink Streaming Job.
@@ -87,6 +91,7 @@ public class StreamingJob implements Serializable {
 
 		boolean onCluster = Boolean.parseBoolean(args[0]);
 		String topicName;
+		String outputTopicName;
 		String bootStrapServers;
 		int queryOption = 1;
 		double radius = 0;
@@ -114,6 +119,7 @@ public class StreamingJob implements Serializable {
 			k = Integer.parseInt(args[6]);
 			bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
 			topicName = "TaxiDriveGeoJSON_17M_R2_P60";
+			outputTopicName = "outputTopic4";
 
 		}else{
 
@@ -129,6 +135,7 @@ public class StreamingJob implements Serializable {
 			bootStrapServers = "localhost:9092";
 			//topicName = "TaxiDrive17MillionGeoJSON";
 			topicName = "MovingFeatures";
+			outputTopicName = "outputTopic6";
 		}
 
 		// Defining Grid
@@ -156,7 +163,6 @@ public class StreamingJob implements Serializable {
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-
 		// Preparing Kafka Connection to Get Stream Tuples
 		Properties kafkaProperties = new Properties();
 		kafkaProperties.setProperty("bootstrap.servers", bootStrapServers);
@@ -173,6 +179,9 @@ public class StreamingJob implements Serializable {
 
 		DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, windowSize, windowSlideStep);
 		windowedCellBasedStayTime.print();
+
+		windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopicName, new MFKafkaOutputSchema(outputTopicName), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+
 
 		/*
 		Point queryPoint = new Point(116.414899, 39.920374, uGrid);
