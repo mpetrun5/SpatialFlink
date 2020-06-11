@@ -20,6 +20,7 @@ import GeoFlink.spatialObjects.Point;
 import GeoFlink.utils.HelperClass;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.json.JSONArray;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -40,45 +41,140 @@ public class UniformGrid implements Serializable {
     HashSet<String> girdCellsSet = new HashSet<String>();
 
     //TODO: Remove variable cellLengthMeters (Deprecated)
+    // Constructors
 
-    public UniformGrid(int uniformGridRows, double minX, double maxX, double minY, double maxY)
+    public UniformGrid(double cellLengthDesired, JSONArray inputCoordinatesArr)
     {
-        this.minX = minX;     //X - East-West longitude
-        this.maxX = maxX;
-        this.minY = minY;     //Y - North-South latitude
-        this.maxY = maxY;
+        initializeGridCoordinates(inputCoordinatesArr);
+        adjustCoordinatesForSquareGrid();
 
-        double xAxisDiff = maxX - minX;
-        double yAxisDiff = maxY - minY;
+        double gridLengthMeters = HelperClass.computeHaverSine(minX, minY, maxX, minY);
+        double numGridRows = gridLengthMeters/cellLengthDesired;
+
+        if(numGridRows < 1)
+            this.numGridPartitions = 1;
+        else
+            this.numGridPartitions = (int)Math.ceil(numGridRows);
+
+        this.cellLength = (maxX - minX) / this.numGridPartitions;
+        this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
+
+        // Populating the girdCellset - contains all the cells in the grid
+        populateGridCells();
+    }
+    public UniformGrid(double cellLengthDesired, double minLongitude, double maxLongitude, double minLatitude, double maxLatitude)
+    {
+        this.minX = minLongitude;     //X - East-West longitude
+        this.maxX = maxLongitude;
+        this.minY = minLatitude;     //Y - North-South latitude
+        this.maxY = maxLatitude;
+
+        adjustCoordinatesForSquareGrid();
+
+        double gridLengthMeters = HelperClass.computeHaverSine(minX, minY, maxX, minY);
+        double numGridRows = gridLengthMeters/cellLengthDesired;
+
+        if(numGridRows < 1)
+            this.numGridPartitions = 1;
+        else
+            this.numGridPartitions = (int)Math.ceil(numGridRows);
+
+        this.cellLength = (maxX - minX) / this.numGridPartitions;
+        this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
+
+        // Populating the girdCellset - contains all the cells in the grid
+        populateGridCells();
+
+        //System.out.println("gridLengthMeters " + gridLengthMeters);
+        //System.out.println("numGridRows " + numGridRows);
+        //System.out.println("numGridPartitions: " + numGridPartitions);
+        //System.out.println("cellLength: " + cellLength);
+    }
+
+    public UniformGrid(int uniformGridRows, double minLongitude, double maxLongitude, double minLatitude, double maxLatitude)
+    {
+        this.minX = minLongitude;     //X - East-West longitude
+        this.maxX = maxLongitude;
+        this.minY = minLatitude;     //Y - North-South latitude
+        this.maxY = maxLatitude;
 
         this.numGridPartitions = uniformGridRows;
+
+        adjustCoordinatesForSquareGrid();
+
+        this.cellLength = (maxX - minX) / uniformGridRows;
+        //System.out.println("cellLength: " + cellLength);
+        this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
+
+        // Populating the girdCellset - contains all the cells in the grid
+        populateGridCells();
+    }
+
+    private void initializeGridCoordinates(JSONArray inputCoordinatesArr){
+
+        double minLongitude = Double.MAX_VALUE;
+        double minLatitude = Double.MAX_VALUE;
+        double maxLongitude= Double.MIN_VALUE;;
+        double maxLatitude = Double.MIN_VALUE;;
+
+        for (int i = 0; i < inputCoordinatesArr.length(); i++)
+        {
+            JSONArray inputCoordinatesPoint = inputCoordinatesArr.getJSONArray(i);
+            {
+                if (minLongitude > inputCoordinatesPoint.getDouble(0))
+                    minLongitude = inputCoordinatesPoint.getDouble(0);
+
+                if (maxLongitude < inputCoordinatesPoint.getDouble(0))
+                    maxLongitude = inputCoordinatesPoint.getDouble(0);
+
+                if (minLatitude > inputCoordinatesPoint.getDouble(1))
+                    minLatitude = inputCoordinatesPoint.getDouble(1);
+
+                if (maxLatitude < inputCoordinatesPoint.getDouble(1))
+                    maxLatitude = inputCoordinatesPoint.getDouble(1);
+            }
+        }
+
+        this.minX = minLongitude;     //X - East-West longitude
+        this.maxX = maxLongitude;
+        this.minY = minLatitude;     //Y - North-South latitude
+        this.maxY = maxLatitude;
+
+        //System.out.println("minLongitude " + minLongitude);
+        //System.out.println("maxLongitude " + maxLongitude);
+        //System.out.println("minLatitude " + minLatitude);
+        //System.out.println("maxLatitude " + maxLatitude);
+    }
+
+    public void adjustCoordinatesForSquareGrid(){
+        double xAxisDiff = this.maxX - this.minX;
+        double yAxisDiff = this.maxY - this.minY;
 
         // Adjusting coordinates to make square grid cells
         if(xAxisDiff > yAxisDiff)
         {
             double diff = xAxisDiff - yAxisDiff;
-            maxY += diff / 2;
-            minY -= diff / 2;
+            this.maxY += diff / 2;
+            this.minY -= diff / 2;
         }
         else if(yAxisDiff > xAxisDiff)
         {
             double diff = yAxisDiff - xAxisDiff;
-            maxX += diff / 2;
-            minX -= diff / 2;
+            this.maxX += diff / 2;
+            this.minX -= diff / 2;
         }
+    }
 
-        this.cellLength = (maxX - minX) / uniformGridRows;
-        System.out.println("cellLength: " + cellLength);
-        this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
-
-        // Populating the girdCellset - contains all the cells in the grid
-        for (int i = 0; i < uniformGridRows; i++) {
-            for (int j = 0; j < uniformGridRows; j++) {
+    private void populateGridCells(){
+        for (int i = 0; i < this.numGridPartitions; i++) {
+            for (int j = 0; j < this.numGridPartitions; j++) {
                 String cellKey = HelperClass.padLeadingZeroesToInt(i, CELLINDEXSTRLENGTH) + HelperClass.padLeadingZeroesToInt(j, CELLINDEXSTRLENGTH);
                 girdCellsSet.add(cellKey);
             }
         }
     }
+
+
 
     public double getMinX() {return minX;}
     public double getMinY() {return minY;}

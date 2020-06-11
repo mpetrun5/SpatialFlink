@@ -2,12 +2,19 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="1324c6e9-e930-41b7-8e36-209d061d1d70" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MFKafkaOutputSchema.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__org_json_json_20200518.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/GeoFlinkProject.iml" beforeDir="false" afterPath="$PROJECT_DIR$/GeoFlinkProject.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MFKafkaOutputSchema.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MFKafkaOutputSchema.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialIndices/UniformGrid.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialIndices/UniformGrid.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/HelperClass.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/HelperClass.java" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -26,13 +33,6 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="MavenImportPreferences">
-    <option name="importingSettings">
-      <MavenImportingSettings>
-        <option name="importAutomatically" value="true" />
-      </MavenImportingSettings>
-    </option>
-  </component>
   <component name="ProjectCodeStyleSettingsMigration">
     <option name="version" value="1" />
   </component>
@@ -42,7 +42,6 @@
   </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
-    <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
@@ -50,28 +49,17 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="findjar.last.used.dir" value="$PROJECT_DIR$" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/pom.xml" />
     <property name="project.structure.last.edited" value="Project" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.0" />
-  </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
+    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
   </component>
   <component name="RunManager">
     <configuration name="StreamingJob" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="GeoFlink.StreamingJob" />
       <module name="GeoFlinkProject" />
-      <option name="PROGRAM_PARAMETERS" value="false" />
+      <option name="PROGRAM_PARAMETERS" value="--inputs &quot;{topics: [MovingFeatures, MovingFeatures2] }&quot; --output &quot;outputTopic3&quot; --queryId &quot;Q1&quot; --aggregate &quot;ALL&quot; --cellLength &quot;10.0&quot; --wType &quot;TIME&quot; --wInterval &quot;5&quot; --wStep &quot;5&quot; --gType &quot;Polygon&quot; --gCoordinates &quot;{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}&quot;" />
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="GeoFlink.*" />
@@ -106,42 +94,80 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="COLUMN_ORDER" />
-            </State>
+            <State />
           </value>
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="777" y="377" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1583995374219">
-      <screen x="65" y="24" width="2495" height="1416" />
+    <state x="3656" y="538" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1591782220372">
+      <screen x="2560" y="0" width="3840" height="2160" />
     </state>
+    <state x="3656" y="538" key="#com.intellij.execution.impl.EditConfigurationsDialog/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591782220372" />
+    <state x="777" y="377" key="#com.intellij.execution.impl.EditConfigurationsDialog/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591693062353" />
     <state x="777" y="377" key="#com.intellij.execution.impl.EditConfigurationsDialog/65.24.2495.1416@65.24.2495.1416" timestamp="1583995374219" />
-    <state width="2449" height="154" key="GridCell.Tab.0.bottom" timestamp="1584005500553">
-      <screen x="65" y="24" width="2495" height="1416" />
+    <state x="4300" y="822" key="FileChooserDialogImpl" timestamp="1591788119035">
+      <screen x="2560" y="0" width="3840" height="2160" />
     </state>
+    <state x="4300" y="822" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591788119035" />
+    <state width="3729" height="812" key="GridCell.Tab.0.bottom" timestamp="1591854572780">
+      <screen x="2560" y="0" width="3840" height="2160" />
+    </state>
+    <state width="3729" height="812" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
+    <state width="2449" height="714" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591845551857" />
     <state width="2449" height="154" key="GridCell.Tab.0.bottom/65.24.2495.1416@65.24.2495.1416" timestamp="1584005500553" />
-    <state width="2449" height="154" key="GridCell.Tab.0.center" timestamp="1584005500553">
-      <screen x="65" y="24" width="2495" height="1416" />
+    <state width="3729" height="812" key="GridCell.Tab.0.center" timestamp="1591854572780">
+      <screen x="2560" y="0" width="3840" height="2160" />
     </state>
+    <state width="3729" height="812" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
+    <state width="2449" height="714" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591845551857" />
     <state width="2449" height="154" key="GridCell.Tab.0.center/65.24.2495.1416@65.24.2495.1416" timestamp="1584005500553" />
-    <state width="2449" height="154" key="GridCell.Tab.0.left" timestamp="1584005500553">
-      <screen x="65" y="24" width="2495" height="1416" />
+    <state width="3729" height="812" key="GridCell.Tab.0.left" timestamp="1591854572780">
+      <screen x="2560" y="0" width="3840" height="2160" />
     </state>
+    <state width="3729" height="812" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
+    <state width="2449" height="714" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591845551856" />
     <state width="2449" height="154" key="GridCell.Tab.0.left/65.24.2495.1416@65.24.2495.1416" timestamp="1584005500553" />
-    <state width="2449" height="154" key="GridCell.Tab.0.right" timestamp="1584005500553">
+    <state width="3729" height="812" key="GridCell.Tab.0.right" timestamp="1591854572780">
+      <screen x="2560" y="0" width="3840" height="2160" />
+    </state>
+    <state width="3729" height="812" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
+    <state width="2449" height="714" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591845551857" />
+    <state width="2449" height="154" key="GridCell.Tab.0.right/65.24.2495.1416@65.24.2495.1416" timestamp="1584005500553" />
+    <state width="2449" height="433" key="GridCell.Tab.1.bottom" timestamp="1591684930654">
       <screen x="65" y="24" width="2495" height="1416" />
     </state>
-    <state width="2449" height="154" key="GridCell.Tab.0.right/65.24.2495.1416@65.24.2495.1416" timestamp="1584005500553" />
-    <state x="1430" y="403" key="Maven.ArtifactSearchDialog" timestamp="1583914390039">
+    <state width="2449" height="433" key="GridCell.Tab.1.bottom/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591684930654" />
+    <state width="2449" height="433" key="GridCell.Tab.1.center" timestamp="1591684930654">
       <screen x="65" y="24" width="2495" height="1416" />
+    </state>
+    <state width="2449" height="433" key="GridCell.Tab.1.center/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591684930654" />
+    <state width="2449" height="433" key="GridCell.Tab.1.left" timestamp="1591684930654">
+      <screen x="65" y="24" width="2495" height="1416" />
+    </state>
+    <state width="2449" height="433" key="GridCell.Tab.1.left/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591684930654" />
+    <state width="2449" height="433" key="GridCell.Tab.1.right" timestamp="1591684930654">
+      <screen x="65" y="24" width="2495" height="1416" />
+    </state>
+    <state width="2449" height="433" key="GridCell.Tab.1.right/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1591684930654" />
+    <state x="3531" y="596" key="Maven.ArtifactSearchDialog" timestamp="1591356225001">
+      <screen x="65" y="24" width="6335" height="2136" />
     </state>
     <state x="1430" y="403" key="Maven.ArtifactSearchDialog/65.24.2495.1416@65.24.2495.1416" timestamp="1583914390039" />
+    <state x="3531" y="596" key="Maven.ArtifactSearchDialog/65.24.6335.2136@65.24.6335.2136" timestamp="1591356225001" />
+    <state x="4006" y="714" key="SettingsEditor" timestamp="1591700252087">
+      <screen x="2560" y="0" width="3840" height="2160" />
+    </state>
+    <state x="4006" y="714" key="SettingsEditor/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591700252087" />
+    <state x="3775" y="670" key="new project wizard" timestamp="1591788140491">
+      <screen x="2560" y="0" width="3840" height="2160" />
+    </state>
+    <state x="3775" y="670" key="new project wizard/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591788140491" />
     <state x="975" y="326" width="672" height="678" key="search.everywhere.popup" timestamp="1583994370929">
       <screen x="65" y="24" width="2495" height="1416" />
     </state>

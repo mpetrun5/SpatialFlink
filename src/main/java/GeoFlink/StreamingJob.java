@@ -34,9 +34,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSONPObject;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -54,6 +56,10 @@ import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserialization
 import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import scala.Serializable;
+//import scala.util.parsing.json.JSONObject;
+import org.json.*;
+
+
 
 import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
@@ -77,88 +83,61 @@ public class StreamingJob implements Serializable {
 
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
-		config.setString(RestOptions.BIND_PORT, "8081-8099");  // Can be commented if port is available
+		//config.setString(RestOptions.BIND_PORT, "8081-8099");  // Can be commented if port is available
+		config.setString(RestOptions.BIND_PORT, "8081");
 
 		// set up the streaming execution environment
 		final StreamExecutionEnvironment env;
+		ParameterTool parameters = ParameterTool.fromArgs(args);
 
-		//INPUT FORMAT FOR CLUSTER: <True> <Query_number> <Radius> <Grid_size> <Window_size> <Slide_step>
-		if(args.length < 1)
-		{
-			System.out.println("At-leaset one argument must be provided. |true| for cluster and |false| for local processing");
-			System.exit(0);
-		}
+		String inputTopics = parameters.get("inputs");
+		String outputTopic = parameters.get("output");
+		String queryID = parameters.get("queryId");
+		String aggregateFunction = parameters.get("aggregate");  // "ALL", "SUM", "AVG", "MIN", "MAX" (Default = ALL)
+		double cellLengthDesired = Double.parseDouble(parameters.get("cellLength")); // Default 10x10 Grid
+		String windowType = parameters.get("wType");  // "TIME" or "COUNT" (Default TIME Window)
+		long windowSize = Long.parseLong(parameters.get("wInterval"));
+		long windowSlideStep = Long.parseLong(parameters.get("wStep"));
+		//String geometryType = parameters.get("gType");
+		String geometryCoordinates = parameters.get("gCoordinates");
+		//geometryCoordinates = "{ \"Coordinates\": [[[1,2],[13,4],[-1,-6],[7,-8],[6,2]]]}";
+		JSONObject inputCoordinatesJSONObj = new JSONObject(geometryCoordinates);
+		JSONArray inputCoordinatesArr = inputCoordinatesJSONObj.getJSONArray("coordinates").getJSONArray(0);
 
-		boolean onCluster = Boolean.parseBoolean(args[0]);
-		String topicName;
-		String outputTopicName;
-		String bootStrapServers;
-		int queryOption = 1;
-		double radius = 0;
-		int uniformGridSize = 100;
-		int windowSlideStep = 0;
-		int windowSize = 0;
-		int k = 3; // default value
+		//--inputs "{topics: [MovingFeatures] }" --output "outputTopic" --queryId "Q1" --aggregate "SUM" --cellLength "100.0" --wType "TIME" --wInterval "2" --wStep "1" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
+		//--inputs "{topics: [MovingFeatures, MovingFeatures2] }" --output "outputTopic3" --queryId "Q1" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000"	--wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 
-		if (onCluster) {
+		//queryOption =  Integer.parseInt(parameters.get("queryOption"));
+		//radius =  Double.parseDouble(parameters.get("radius"));
+			//k = Integer.parseInt(parameters.get("k"));
 
-			if(args.length < 7)
-			{
-				System.out.println("Input argument if onCluster (true/false) and the query option.");
-				System.out.println("INPUT FORMAT FOR CLUSTER: <True> <Query_number> <Radius> <Grid_size> <Window_size> <Slide_step> <k>, E.g.: True 1 0.01 100 1 1 3");
-				System.exit(0);
-			}
+//			queryOption =  Integer.parseInt(args[1]);
+//			radius =  Double.parseDouble(args[2]);
+//			uniformGridSize = Integer.parseInt(args[3]);
+//			windowSize = Integer.parseInt(args[4]);
+//			windowSlideStep = Integer.parseInt(args[5]);
+//			k = Integer.parseInt(args[6]);
 
-			env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-			queryOption =  Integer.parseInt(args[1]);
-			radius =  Double.parseDouble(args[2]);
-			uniformGridSize = Integer.parseInt(args[3]);
-			windowSize = Integer.parseInt(args[4]);
-			windowSlideStep = Integer.parseInt(args[5]);
-			k = Integer.parseInt(args[6]);
-			bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
-			topicName = "TaxiDriveGeoJSON_17M_R2_P60";
-			outputTopicName = "outputTopic4";
-
-		}else{
-
-			System.out.println("Local Execution!");
-			env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-
-			queryOption = 1; //1,2 Range Query, 4, 5 kNN Query, 7, 8 Spatial Join
-			radius =  0.004;
-			uniformGridSize = 100;
-			windowSize = 1;
-			windowSlideStep = 1;
-			k = 3;
-			bootStrapServers = "localhost:9092";
-			//topicName = "TaxiDrive17MillionGeoJSON";
-			topicName = "MovingFeatures";
-			outputTopicName = "outputTopic6";
-		}
-
-		// Defining Grid
-
-		// Boundaries for Foursquare check-in datasets
-		//double maxX = -73.683825;       //X - East-West longitude
-		//double minX = -74.274766;
-		//double maxY = 40.988332;        //Y - North-South latitude
-		//double minY = 40.550852;
-
-		// Boundaries for Taxi Drive datasets
-		//double minX = 115.50000;     //X - East-West longitude
-		//double maxX = 117.60000;
-		//double minY = 39.60000;     //Y - North-South latitude
-		//double maxY = 41.10000;
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
+		//String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
+		String bootStrapServers = "localhost:9092";
+		//String topicName = "MovingFeatures";
 
 		// Boundaries for MF datasets
-		double minX = 139.77667562042726;     //X - East-West longitude
-		double maxX = 139.77722108273215;
-		double minY = 35.6190837;     //Y - North-South latitude
-		double maxY = 35.6195177;
+//		double minX = 139.77667562042726;     //X - East-West longitude
+//		double maxX = 139.77722108273215;
+//		double minY = 35.6190837;     //Y - North-South latitude
+//		double maxY = 35.6195177;
 
-		UniformGrid uGrid = new UniformGrid(uniformGridSize, minX, maxX, minY, maxY);
+		UniformGrid uGrid;
+		if (cellLengthDesired > 0) {
+			//uGrid = new UniformGrid(cellLengthDesired, minLongitude, maxLongitude, minLatitude, maxLatitude);
+			uGrid = new UniformGrid(cellLengthDesired, inputCoordinatesArr);
+		}
+		else{
+			uGrid = new UniformGrid(10, inputCoordinatesArr);
+		}
 
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -167,42 +146,36 @@ public class StreamingJob implements Serializable {
 		Properties kafkaProperties = new Properties();
 		kafkaProperties.setProperty("bootstrap.servers", bootStrapServers);
 		kafkaProperties.setProperty("group.id", "messageStream");
-		DataStream geoJSONStream  = env.addSource(new FlinkKafkaConsumer<>(topicName, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest());
+
+		List<DataStream> geoJSONStreams = new ArrayList<DataStream>();
+		JSONObject inputTopicsJSONObj = new JSONObject(inputTopics);
+		JSONArray inputTopicsArr = inputTopicsJSONObj.getJSONArray("topics");
+		for (int i = 0; i < inputTopicsArr.length(); i++)
+		{
+			String inputTopic = inputTopicsArr.getString(i);
+			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
+			System.out.println(inputTopic);
+		}
+
+		List<DataStream<Point>> spatialStreams = new ArrayList<DataStream<Point>>();
+		for(DataStream geoJSONStream: geoJSONStreams)
+			spatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
+
+		DataStream<Point> spatialStream = HelperClass.getUnifiedStream(spatialStreams);
+
+
+		//DataStream geoJSONStream  = env.addSource(new FlinkKafkaConsumer<>(topicName, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest());
 		//DataStream csvStream  = env.addSource(new FlinkKafkaConsumer<>(topicName, new SimpleStringSchema(), kafkaProperties).setStartFromEarliest());
 
 		// Converting GeoJSON,CSV stream to Spatial data stream (point)
-		//DataStream<Point> spatialStream = SpatialStream.PointStream(geoJSONStream, "GeoJSON", uGrid);
-		DataStream<Point> spatialStream = SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid);
+		//DataStream<Point> spatialStream = SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid);
 		//DataStream<Point> spatialStream = SpatialStream.PointStream(csvStream, "CSV", uGrid);
+		//spatialStream.print();
 
-
-
-		DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, windowSize, windowSlideStep);
+		DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
 		windowedCellBasedStayTime.print();
 
-		windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopicName, new MFKafkaOutputSchema(outputTopicName), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
-
-
-		/*
-		Point queryPoint = new Point(116.414899, 39.920374, uGrid);
-		switch(queryOption) {
-
-			case 1: { // Range Query (Grid-based)
-				DataStream<Point> rNeighbors= RangeQuery.SpatialRangeQuery(spatialStream, queryPoint, radius, windowSize, windowSlideStep, uGrid);  // better than equivalent GB approach
-				break;}
-			case 2: { // KNN (Grid based - Iterative approach)
-				DataStream < PriorityQueue < Tuple2 < Point, Double >>> kNNPQStream = KNNQuery.SpatialKNNQuery(spatialStream, queryPoint, k, windowSize, windowSlideStep, uGrid);
-				break;}
-			case 3: { // Spatial Join (Grid-based)
-				DataStream geoJSONQueryStream  = env.addSource(new FlinkKafkaConsumer<>("TaxiDriveQueries1MillionGeoJSON_Live", new JSONKeyValueDeserializationSchema(false),kafkaProperties).setStartFromLatest());
-				//DataStream<Point> queryStream = queryStreamJSON.map(new SpatialStream.GeoJSONToSpatial(uGrid)).startNewChain();
-				DataStream<Point> queryStream = SpatialStream.PointStream(geoJSONQueryStream, "GeoJSON", uGrid);
-				DataStream<Tuple2<String, String>> spatialJoinStream = JoinQuery.SpatialJoinQuery(spatialStream, queryStream, radius, windowSize, windowSlideStep, uGrid);
-				break;}
-			default:
-				System.out.println("Input Unrecognized. Please select option from 1-3.");
-		}
-		*/
+		windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 
 		// execute program
 		env.execute("Geo Flink");

@@ -63,10 +63,10 @@ public class SpatialStream implements Serializable {
         };
 
         @Override
-        public Point map(ObjectNode json) throws Exception {
+        public Point map(ObjectNode jsonObj) throws Exception {
 
             //String objType = json.get("value").get("geometry").get("type").asText();
-            Point spatialPoint = new Point(json.get("value").get("geometry").get("coordinates").get(0).asDouble(), json.get("value").get("geometry").get("coordinates").get(1).asDouble(), uGrid);
+            Point spatialPoint = new Point(jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), uGrid);
 
             return spatialPoint;
         }
@@ -86,12 +86,12 @@ public class SpatialStream implements Serializable {
         };
 
         @Override
-        public Point map(ObjectNode json) throws Exception {
+        public Point map(ObjectNode jsonObj) throws Exception {
 
-            int trackerID = json.get("value").get("tracker_id").asInt();
-            Date dateTime = simpleDateFormat.parse(json.get("value").get("time").asText());
+            int trackerID = jsonObj.get("value").get("tracker_id").asInt();
+            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("time").asText());
             long timeStampMillisec = dateTime.getTime();
-            Point spatialPoint = new Point(trackerID, json.get("value").get("position").get(0).asDouble(), json.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid);
+            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid);
 
             return spatialPoint;
         }

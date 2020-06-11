@@ -16,11 +16,16 @@ limitations under the License.
 
 package GeoFlink.utils;
 
+import GeoFlink.spatialIndices.UniformGrid;
+import GeoFlink.spatialObjects.Point;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class HelperClass {
 
@@ -62,6 +67,29 @@ public class HelperClass {
         return cellIndices;
     }
 
+    public static List<Tuple2<Double, Double>> getCellCoordinates(String cellId, UniformGrid uGrid)
+    {
+        ArrayList<Integer> cellIndices = HelperClass.getIntCellIndices(cellId);
+        List<Tuple2<Double, Double>> cellCoordinates = new ArrayList<Tuple2<Double, Double>>();
+        double minX = uGrid.getMinX();
+        double minY = uGrid.getMinY();
+        double cellLength = uGrid.getCellLength();
+
+        double cellMinX = minX + (cellLength * cellIndices.get(0));
+        double cellMinY = minY + (cellLength * cellIndices.get(1));
+
+        double cellMaxX = minX + (cellLength * (cellIndices.get(0) + 1));
+        double cellMaxY = minY + (cellLength * (cellIndices.get(1) + 1));
+
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMaxY));
+        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMaxY));
+        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMinY));
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
+
+        return cellCoordinates;
+    }
+
     public static Integer getCellLayerWRTQueryCell(String queryCellID, String cellID)
     {
         ArrayList<Integer> queryCellIndices = getIntCellIndices(queryCellID);
@@ -87,10 +115,10 @@ public class HelperClass {
         return Math.sqrt( Math.pow((lat1 - lat),2) + Math.pow((lon1 - lon),2));
     }
 
-    public static double computeHaverSine(Double lon, Double lat, Double lon1, Double lat1) {
-        Double rLat1 = Math.toRadians(lat);
-        Double rLat2 = Math.toRadians(lat1);
-        Double dLon=Math.toRadians(lon1-lon);
+    public static double computeHaverSine(Double lon1, Double lat1, Double lon2, Double lat2) {
+        Double rLat1 = Math.toRadians(lat1);
+        Double rLat2 = Math.toRadians(lat2);
+        Double dLon=Math.toRadians(lon2-lon1);
         Double distance= Math.acos(Math.sin(rLat1)*Math.sin(rLat2) + Math.cos(rLat1)*Math.cos(rLat2) * Math.cos(dLon)) * mEarthRadius;
         return distance;
     }
@@ -108,6 +136,27 @@ public class HelperClass {
             }
             else return true;
         }
+    }
+
+    public static DataStream<Point> getUnifiedStream(List<DataStream<Point>> spatialStreams){
+
+        DataStream<Point> spatialStream;
+
+        if(spatialStreams.size() == 2)
+            spatialStream = spatialStreams.get(0).union(spatialStreams.get(1));
+        else if (spatialStreams.size() == 3){
+            spatialStream = spatialStreams.get(0).union(spatialStreams.get(1), spatialStreams.get(2));
+        }
+        else if (spatialStreams.size() == 4){
+            spatialStream = spatialStreams.get(0).union(spatialStreams.get(1), spatialStreams.get(2), spatialStreams.get(3));
+        }
+        else if (spatialStreams.size() == 5){
+            spatialStream = spatialStreams.get(0).union(spatialStreams.get(1), spatialStreams.get(2), spatialStreams.get(3), spatialStreams.get(4));
+        }
+        else
+            spatialStream = spatialStreams.get(0);
+
+        return spatialStream;
     }
 
 }
