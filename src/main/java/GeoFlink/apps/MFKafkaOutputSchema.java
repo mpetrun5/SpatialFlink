@@ -23,21 +23,25 @@ public class MFKafkaOutputSchema implements Serializable, KafkaSerializationSche
     private String outputTopic;
     private String queryId;
     private UniformGrid uGrid;
+    private String aggregateFunction;
 
-    public MFKafkaOutputSchema(String outputTopicName, String queryID, UniformGrid uGrid)
+    public MFKafkaOutputSchema(String outputTopicName, String queryID, String aggregateFunction, UniformGrid uGrid)
     {
         this.outputTopic = outputTopicName;
         this.queryId = queryID;
+        this.aggregateFunction = aggregateFunction;
         this.uGrid = uGrid;
     }
 
     @Override
     public ProducerRecord<byte[], byte[]> serialize(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> element, @Nullable Long timestamp) {
 
-        List<Tuple2<Double, Double>> cellCoordinates = HelperClass.getCellCoordinates(element.f0, this.uGrid);
+        ArrayList<Integer> cellIndices = HelperClass.getIntCellIndices(element.f0);
+        List<Tuple2<Double, Double>> cellCoordinates = HelperClass.getCellCoordinates(cellIndices, this.uGrid);
 
         JSONObject jsonObj = new JSONObject();
         jsonObj.put("queryId", this.queryId);
+        jsonObj.put("aggregate", this.aggregateFunction);
 
         JSONObject outputObj = new JSONObject();
         jsonObj.put("output", outputObj);
@@ -45,9 +49,12 @@ public class MFKafkaOutputSchema implements Serializable, KafkaSerializationSche
         JSONArray window = new JSONArray();
         window.put(element.f2);
         window.put(element.f3);
-
         outputObj.put("window", window);
-        outputObj.put("cellId", element.f0);
+
+        JSONArray cellIds = new JSONArray();
+        cellIds.put(cellIndices.get(0));
+        cellIds.put(cellIndices.get(1));
+        outputObj.put("cellIndices", cellIds);
 
         JSONArray coordinates = new JSONArray();
         outputObj.put("coordinates", coordinates);

@@ -28,6 +28,7 @@ import GeoFlink.spatialOperators.RangeQuery;
 import GeoFlink.spatialStreams.SpatialStream;
 import GeoFlink.utils.HelperClass;
 import com.typesafe.config.ConfigException;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -95,6 +96,7 @@ public class StreamingJob implements Serializable {
 		String queryID = parameters.get("queryId");
 		String aggregateFunction = parameters.get("aggregate");  // "ALL", "SUM", "AVG", "MIN", "MAX" (Default = ALL)
 		double cellLengthDesired = Double.parseDouble(parameters.get("cellLength")); // Default 10x10 Grid
+		double movingSensorRadius = Double.parseDouble(parameters.get("sensorRadius"));
 		String windowType = parameters.get("wType");  // "TIME" or "COUNT" (Default TIME Window)
 		long windowSize = Long.parseLong(parameters.get("wInterval"));
 		long windowSlideStep = Long.parseLong(parameters.get("wStep"));
@@ -106,21 +108,15 @@ public class StreamingJob implements Serializable {
 
 		//--inputs "{topics: [MovingFeatures] }" --output "outputTopic" --queryId "Q1" --aggregate "SUM" --cellLength "100.0" --wType "TIME" --wInterval "2" --wStep "1" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--inputs "{topics: [MovingFeatures, MovingFeatures2] }" --output "outputTopic3" --queryId "Q1" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000"	--wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
-
-		//queryOption =  Integer.parseInt(parameters.get("queryOption"));
-		//radius =  Double.parseDouble(parameters.get("radius"));
-			//k = Integer.parseInt(parameters.get("k"));
-
-//			queryOption =  Integer.parseInt(args[1]);
-//			radius =  Double.parseDouble(args[2]);
-//			uniformGridSize = Integer.parseInt(args[3]);
-//			windowSize = Integer.parseInt(args[4]);
-//			windowSlideStep = Integer.parseInt(args[5]);
-//			k = Integer.parseInt(args[6]);
+		//--inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic3" --queryId "Q1" --sensorRadius "0.001" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000" --wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 
 
-		env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// Cluster
+		//env = StreamExecutionEnvironment.getExecutionEnvironment();
 		//String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
+
+		// Local
+		env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
 		String bootStrapServers = "localhost:9092";
 		//String topicName = "MovingFeatures";
 
@@ -149,6 +145,74 @@ public class StreamingJob implements Serializable {
 
 		List<DataStream> geoJSONStreams = new ArrayList<DataStream>();
 		JSONObject inputTopicsJSONObj = new JSONObject(inputTopics);
+
+		JSONArray movingObjTopicsArr = inputTopicsJSONObj.getJSONArray("movingObjTopics");
+		for (int i = 0; i < movingObjTopicsArr.length(); i++)
+		{
+			String inputTopic = movingObjTopicsArr.getString(i);
+			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
+		}
+		List<DataStream<Point>> spatialStreams = new ArrayList<DataStream<Point>>();
+		for(DataStream geoJSONStream: geoJSONStreams)
+			spatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
+		DataStream<Point> spatialStream = HelperClass.getUnifiedStream(spatialStreams);
+
+
+		geoJSONStreams.clear();
+		JSONArray sensorTopicsArr = inputTopicsJSONObj.getJSONArray("sensorTopics");
+		for (int i = 0; i < sensorTopicsArr.length(); i++)
+		{
+			String inputTopic = sensorTopicsArr.getString(i);
+			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
+		}
+		List<DataStream<Point>> sensorSpatialStreams = new ArrayList<DataStream<Point>>();
+		for(DataStream geoJSONStream: geoJSONStreams)
+			sensorSpatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
+		DataStream<Point> sensorSpatialStream = HelperClass.getUnifiedStream(sensorSpatialStreams);
+
+		DataStream<String> sensorCellIds = RangeQuery.GetCellsWithinRadius(sensorSpatialStream, movingSensorRadius, windowSize, windowSlideStep, uGrid);
+		//sensorCellIds.print();
+
+		DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
+		//windowedCellBasedStayTime.print();
+
+		sensorCellIds.coGroup(windowedCellBasedStayTime)
+				.where(new KeySelector<String,String>(){
+					@Override
+					public String getKey(String cellId) throws Exception {
+						return cellId;
+					}})
+				.equalTo(new KeySelector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>,String>(){
+					@Override
+					public String getKey(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime) throws Exception {
+						return stayTime.f0;
+					}})
+				.window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+				.apply(new CoGroupFunction<String, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Object>() {
+					@Override
+					public void coGroup(Iterable<String> cellIds, Iterable<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimes, Collector<Object> collector) throws Exception {
+
+						System.out.println("Iterable 1");
+						for(String cellId: cellIds){
+							System.out.println(cellId);}
+
+						System.out.println("\n Iterable 2");
+						for(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime: stayTimes){
+							System.out.println(stayTime.f0);}
+						
+					}
+				});
+
+																					
+
+		//windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+
+
+
+
+		/*
+		List<DataStream> geoJSONStreams = new ArrayList<DataStream>();
+		JSONObject inputTopicsJSONObj = new JSONObject(inputTopics);
 		JSONArray inputTopicsArr = inputTopicsJSONObj.getJSONArray("topics");
 		for (int i = 0; i < inputTopicsArr.length(); i++)
 		{
@@ -175,7 +239,8 @@ public class StreamingJob implements Serializable {
 		DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
 		windowedCellBasedStayTime.print();
 
-		windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+		windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+		*/
 
 		// execute program
 		env.execute("Geo Flink");

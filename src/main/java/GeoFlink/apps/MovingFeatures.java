@@ -27,11 +27,6 @@ public class MovingFeatures implements Serializable {
     //--------------- MOVING FEATURES STAY TIME -----------------//
     public static DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> CellBasedStayTime(DataStream<Point> pointStream, String aggregateFunction, String windowType, long windowSize, long windowSlideStep) {
 
-        //TODO
-        // aggregateFunction
-        // windowType
-
-
         // Spatial stream with Timestamps and Watermarks
         // Max Allowed Lateness: windowSize
         DataStream<Point> spatialStreamWithTsAndWm =
@@ -62,7 +57,6 @@ public class MovingFeatures implements Serializable {
             return tWindowedCellBasedStayTime;
         }
     }
-
 
     // Key selector
     public static class gridCellKeySelector implements KeySelector<Point,String> {

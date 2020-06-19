@@ -58,6 +58,7 @@ public class UniformGrid implements Serializable {
 
         this.cellLength = (maxX - minX) / this.numGridPartitions;
         this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
+        //System.out.println("cellLengthMeters " + cellLengthMeters);
 
         // Populating the girdCellset - contains all the cells in the grid
         populateGridCells();
@@ -81,6 +82,7 @@ public class UniformGrid implements Serializable {
 
         this.cellLength = (maxX - minX) / this.numGridPartitions;
         this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
+        //System.out.println("cellLengthMeters " + cellLengthMeters);
 
         // Populating the girdCellset - contains all the cells in the grid
         populateGridCells();
@@ -170,6 +172,7 @@ public class UniformGrid implements Serializable {
             for (int j = 0; j < this.numGridPartitions; j++) {
                 String cellKey = HelperClass.padLeadingZeroesToInt(i, CELLINDEXSTRLENGTH) + HelperClass.padLeadingZeroesToInt(j, CELLINDEXSTRLENGTH);
                 girdCellsSet.add(cellKey);
+                //System.out.println("cellKey " + cellKey);
             }
         }
     }
@@ -198,7 +201,7 @@ public class UniformGrid implements Serializable {
     public HashSet<String> getGuaranteedNeighboringCells(double queryRadius, Point queryPoint)
     {
         //queryRadius = CoordinatesConversion.metersToDD(queryRadius,cellLength,cellLengthMeters); //UNCOMMENT FOR HAVERSINE (METERS)
-        System.out.println("queryRadius in Lat/Lon: "+ queryRadius);
+        //System.out.println("queryRadius in Lat/Lon: "+ queryRadius);
         String queryCellID = queryPoint.gridID;
 
         HashSet<String> guaranteedNeighboringCellsSet = new HashSet<String>();
@@ -226,7 +229,7 @@ public class UniformGrid implements Serializable {
     }
 
     public boolean validKey(int x, int y){
-        if(x < numGridPartitions && y < numGridPartitions)
+        if(x >= 0 && y >= 0 && x < numGridPartitions && y < numGridPartitions)
         {return true;}
         else
         {return false;}
@@ -327,7 +330,7 @@ public class UniformGrid implements Serializable {
                         }
                     }
                 }
-            System.out.println("Candidate neighbouring cells: " + count);
+            //System.out.println("Candidate neighbouring cells: " + count);
         }
 
         return candidateNeighboringCellsSet;
@@ -339,7 +342,7 @@ public class UniformGrid implements Serializable {
         double cellDiagonal = cellLength*Math.sqrt(2);
 
         int numberOfLayers = (int)Math.floor((queryRadius/cellDiagonal) - 1); // Subtract 1 because we do not consider the cell with the query object as a layer i
-        System.out.println("Guaranteed Number of Layers: "+ numberOfLayers );
+        //System.out.println("Guaranteed Number of Layers: "+ numberOfLayers );
         return numberOfLayers;
         // If return value = -1 then not even the cell containing the query is guaranteed to contain r-neighbors
         // If return value = 0 then only the cell containing the query is guaranteed to contain r-neighbors
