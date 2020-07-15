@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.locationtech.jts.geom.Coordinate;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,7 +30,26 @@ import java.util.List;
 
 public class HelperClass {
 
-    private static final double mEarthRadius = 6371008.7714;
+    private static final double mEarthRadius = 6371008.7714; // Earth radius in meters
+
+
+    // startingPoint and bearing are in degrees
+    // Source: https://www.movable-type.co.uk/scripts/latlong.html
+    public static Coordinate computeDestinationPoint(Coordinate startingPoint, double angleFromTrueNorth, double distanceInMeters)
+    {
+        double lon1 = Math.toRadians(startingPoint.getX());
+        double lat1 = Math.toRadians(startingPoint.getY());
+        double bearing = Math.toRadians(angleFromTrueNorth);
+        double cosOfDist = Math.cos(distanceInMeters/mEarthRadius);
+        double sinOfDist = Math.sin(distanceInMeters/mEarthRadius);
+        double cosOfLat1 = Math.cos(lat1);
+        double sinOfLat1 = Math.sin(lat1);
+
+        double lat2 = Math.asin(sinOfLat1 * cosOfDist + cosOfLat1 * sinOfDist * Math.cos(bearing) );
+        double lon2 = lon1 + Math.atan2(Math.sin(bearing) * sinOfDist * cosOfLat1, cosOfDist - sinOfLat1 * Math.sin(lat2));
+
+        return new Coordinate(Math.toDegrees(lon2), Math.toDegrees(lat2));
+    }
 
     // return a string padded with zeroes to make the string equivalent to desiredStringLength
     public static String padLeadingZeroesToInt(int cellIndex, int desiredStringLength)
@@ -65,6 +85,29 @@ public class HelperClass {
         cellIndices.add(HelperClass.removeLeadingZeroesFromString(cellIDY));
 
         return cellIndices;
+    }
+
+    public static List<Tuple2<Double, Double>> getCellCoordinates(ArrayList<Integer> cellIndices, UniformGrid uGrid)
+    {
+        //ArrayList<Integer> cellIndices = HelperClass.getIntCellIndices(cellId);
+        List<Tuple2<Double, Double>> cellCoordinates = new ArrayList<Tuple2<Double, Double>>();
+        double minX = uGrid.getMinX();
+        double minY = uGrid.getMinY();
+        double cellLength = uGrid.getCellLength();
+
+        double cellMinX = minX + (cellLength * cellIndices.get(0));
+        double cellMinY = minY + (cellLength * cellIndices.get(1));
+
+        double cellMaxX = minX + (cellLength * (cellIndices.get(0) + 1));
+        double cellMaxY = minY + (cellLength * (cellIndices.get(1) + 1));
+
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMaxY));
+        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMaxY));
+        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMinY));
+        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
+
+        return cellCoordinates;
     }
 
     public static List<Tuple2<Double, Double>> getCellCoordinates(String cellId, UniformGrid uGrid)

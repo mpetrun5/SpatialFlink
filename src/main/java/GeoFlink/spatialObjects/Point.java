@@ -31,6 +31,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.index.strtree.STRtree;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -55,6 +56,18 @@ public class Point extends SpatialObject implements Serializable {
         assignGridID(uGrid);
     }
 
+    public Point(double x, double y, UniformGrid uGrid, boolean angularGrid) {
+
+        GeometryFactory geofact = new GeometryFactory();
+        point = geofact.createPoint(new Coordinate(x, y));
+
+        if(angularGrid){
+            this.gridID = uGrid.getAngularGridCellKey(point);
+        }else{
+            assignGridID(uGrid);
+        }
+    }
+
     public Point(int objID, double x, double y, long timeStampMillisec, UniformGrid uGrid) {
         GeometryFactory geofact = new GeometryFactory();
         //create geotools point object
@@ -64,10 +77,24 @@ public class Point extends SpatialObject implements Serializable {
         assignGridID(uGrid);
     }
 
+    public Point(int objID, double x, double y, long timeStampMillisec, UniformGrid uGrid, boolean angularGrid) {
+        GeometryFactory geofact = new GeometryFactory();
+        //create geotools point object
+        point = geofact.createPoint(new Coordinate(x, y));
+        this.objID = objID;
+        this.timeStampMillisec = timeStampMillisec;
+
+        if(angularGrid){
+            this.gridID = uGrid.getAngularGridCellKey(point);
+        }else{
+            assignGridID(uGrid);
+        }
+    }
+
     // To print the point coordinates
     @Override
     public String toString() {
-        return "[" + point.getX() + ", " + point.getY() + ", " + this.gridID + "]";
+        return "[" + this.objID + ", " + point.getX() + ", " + point.getY() + ", " + this.gridID + "]";
     }
 
 

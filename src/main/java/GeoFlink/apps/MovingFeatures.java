@@ -2,10 +2,15 @@ package GeoFlink.apps;
 
 import GeoFlink.spatialIndices.UniformGrid;
 import GeoFlink.spatialObjects.Point;
+import GeoFlink.spatialOperators.RangeQuery;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -20,17 +25,117 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.PriorityQueue;
 
 public class MovingFeatures implements Serializable {
 
+    //--------------- MOVING FEATURES STAY TIME WITH EMPTY CELLS -----------------//
+    public static DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> CellBasedStayTimeWEmptyCells(DataStream<Point> spatialStream, DataStream<Point> sensorSpatialStream, Double sensorRangeRadius, String aggregateFunction, long windowSize, long windowSlideStep, UniformGrid uGrid) {
+
+        // Get sensor cells within radius
+        DataStream<String> sensorCellIds = RangeQuery.GetCellsWithinRadius(sensorSpatialStream, sensorRangeRadius, windowSize, windowSlideStep, uGrid);
+        //sensorCellIds.print();
+
+        // Get moving object stay time
+        DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, "TIME", windowSize, windowSlideStep);
+        //windowedCellBasedStayTime.print();
+
+
+        DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> coGroupedStream = sensorCellIds.coGroup(windowedCellBasedStayTime)
+                .where(new KeySelector<String,String>(){
+                    @Override
+                    public String getKey(String cellId) throws Exception {
+                        return cellId;
+                    }})
+                .equalTo(new KeySelector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>,String>(){
+                    @Override
+                    public String getKey(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime) throws Exception {
+                        return stayTime.f0;
+                    }})
+                .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                .apply(new CoGroupFunction<String, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>>() {
+                    @Override
+                    public void coGroup(Iterable<String> cellIds, Iterable<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimes, Collector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> output) throws Exception {
+
+                        HashSet<String> cellIdsSet = new HashSet<String>();
+                        HashSet<String> neighbouringCellIdsSet = new HashSet<String>();
+                        HashSet<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimesSet = new HashSet<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>>();
+
+                        // Populating cellIdsSet and eliminating duplicates
+                        for(String cellId: cellIds){
+                            neighbouringCellIdsSet.add(cellId);
+                        }
+
+                        // Populating stayTimesSet
+                        for(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime: stayTimes) {
+                            stayTimesSet.add(stayTime);
+                        }
+                        //System.out.println("cellIdsSet " + cellIdsSet.size() + ", stayTimesSet " + stayTimesSet.size());
+
+                        if(neighbouringCellIdsSet.isEmpty() && stayTimesSet.isEmpty()){
+                            // do nothing, no output
+                        }
+                        else if (neighbouringCellIdsSet.isEmpty()){
+                            for(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime: stayTimesSet){
+                                output.collect(stayTime);
+                            }
+                        }
+                        else if (stayTimesSet.isEmpty()){
+                            for(String cellId: neighbouringCellIdsSet){
+                                output.collect(Tuple5.of(cellId, 0, Long.MIN_VALUE, Long.MIN_VALUE, new HashMap<Integer, Long>()));
+                            }
+                        }
+                        else { // If both are non-empty
+
+                            // First, inserting the populated cells
+                            for (Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime : stayTimesSet) {
+                                output.collect(stayTime);
+                                cellIdsSet.add(stayTime.f0);
+                            }
+
+                            // Second, inserting the non-populated cells
+                            for (String cellId : neighbouringCellIdsSet) {
+                                if (!cellIdsSet.contains(cellId)) { // Insert only if not inserted earlier
+                                    output.collect(Tuple5.of(cellId, 0, Long.MIN_VALUE, Long.MIN_VALUE, new HashMap<Integer, Long>()));
+                                    cellIdsSet.add(cellId);
+                                }
+                            }
+                        }
+                    }
+                });
+
+        DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = coGroupedStream.windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep))).apply(new AllWindowFunction<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, TimeWindow>() {
+            @Override
+            public void apply(TimeWindow timeWindow, Iterable<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> inputStream, Collector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> outputStream) throws Exception {
+
+                HashSet<String> allCellIdsSet = uGrid.getGirdCellsSet();
+                //System.out.println("allCellIdsSet size " + allCellIdsSet.size());
+                HashSet<String> cellIdsSet = new HashSet<String>();
+
+                for (Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTimeTuple : inputStream) {
+                    cellIdsSet.add(stayTimeTuple.f0);
+                    outputStream.collect(stayTimeTuple);
+                }
+
+                // Collecting the output
+                for(String cellId: allCellIdsSet){
+                    if(!cellIdsSet.contains(cellId)){
+                        // -1 cells added
+                        outputStream.collect(Tuple5.of(cellId, -1, Long.MIN_VALUE, Long.MIN_VALUE, new HashMap<Integer, Long>()));
+                    }
+                }
+            }
+        });
+
+        return stayTimeWEmptyCells;
+    }
+
+    //--------------- ~ MOVING FEATURES STAY TIME WITH EMPTY CELLS -----------------//
+
     //--------------- MOVING FEATURES STAY TIME -----------------//
     public static DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> CellBasedStayTime(DataStream<Point> pointStream, String aggregateFunction, String windowType, long windowSize, long windowSlideStep) {
-
-        //TODO
-        // aggregateFunction
-        // windowType
-
 
         // Spatial stream with Timestamps and Watermarks
         // Max Allowed Lateness: windowSize
@@ -63,6 +168,48 @@ public class MovingFeatures implements Serializable {
         }
     }
 
+
+    //--------------- MOVING FEATURES STAY TIME - Angular Grid -----------------//
+    public static DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> CellBasedStayTimeAngularGrid(DataStream<Point> pointStream, String aggregateFunction, String windowType, long windowSize, long windowSlideStep) {
+
+        // Filtering out the cells which do not fall into the grid cells
+        DataStream<Point> spatialStreamWithoutNullCellID = pointStream.filter(new FilterFunction<Point>() {
+            @Override
+            public boolean filter(Point p) throws Exception {
+                return (p.gridID != null);
+            }
+        });
+
+        // Spatial stream with Timestamps and Watermarks
+        // Max Allowed Lateness: windowSize
+        DataStream<Point> spatialStreamWithTsAndWm =
+                spatialStreamWithoutNullCellID.assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<Point>(Time.seconds(windowSize)) {
+                    @Override
+                    public long extractTimestamp(Point p) {
+                        return p.timeStampMillisec;
+                    }
+                });
+
+        if(windowType.equalsIgnoreCase("COUNT")){
+
+            DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> cWindowedCellBasedStayTime = spatialStreamWithTsAndWm
+                    .keyBy(new gridCellKeySelector())
+                    .countWindow(windowSize, windowSlideStep)
+                    .process(new CountWindowProcessFunction(aggregateFunction)).name("Count Windowed Moving Features");
+
+            return cWindowedCellBasedStayTime;
+
+        }
+        else { // Default TIME Window
+
+            DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> tWindowedCellBasedStayTime = spatialStreamWithTsAndWm
+                    .keyBy(new gridCellKeySelector())
+                    .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                    .process(new TimeWindowProcessFunction(aggregateFunction)).name("Time Windowed Moving Features");
+
+            return tWindowedCellBasedStayTime;
+        }
+    }
 
     // Key selector
     public static class gridCellKeySelector implements KeySelector<Point,String> {
@@ -251,8 +398,6 @@ public class MovingFeatures implements Serializable {
                         minTrajLength = trajLength;
                         minTrajLengthObjID = p.objID;
                     }
-
-
 
                 } else {
                     minTimestampTrackerID.put(p.objID, p.timeStampMillisec);

@@ -53,20 +53,23 @@ public class SpatialStream implements Serializable {
     public static class GeoJSONToSpatial extends RichMapFunction<ObjectNode, Point> {
 
         UniformGrid uGrid;
+        boolean isAngularGrid = false;
 
         //ctor
         public  GeoJSONToSpatial() {};
 
         public  GeoJSONToSpatial(UniformGrid uGrid)
         {
+
             this.uGrid = uGrid;
+            this.isAngularGrid = uGrid.getIsAngularGrid();
         };
 
         @Override
         public Point map(ObjectNode jsonObj) throws Exception {
 
             //String objType = json.get("value").get("geometry").get("type").asText();
-            Point spatialPoint = new Point(jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), uGrid);
+            Point spatialPoint = new Point(jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), uGrid, isAngularGrid);
 
             return spatialPoint;
         }
@@ -76,14 +79,16 @@ public class SpatialStream implements Serializable {
 
         UniformGrid uGrid;
         DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        boolean isAngularGrid = false;
 
         //ctor
         public  GeoJSONEventTimeToSpatial() {};
 
-        public  GeoJSONEventTimeToSpatial(UniformGrid uGrid)
-        {
+        public  GeoJSONEventTimeToSpatial(UniformGrid uGrid){
+
             this.uGrid = uGrid;
-        };
+            this.isAngularGrid = uGrid.getIsAngularGrid();
+        }
 
         @Override
         public Point map(ObjectNode jsonObj) throws Exception {
@@ -91,7 +96,7 @@ public class SpatialStream implements Serializable {
             int trackerID = jsonObj.get("value").get("tracker_id").asInt();
             Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("time").asText());
             long timeStampMillisec = dateTime.getTime();
-            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid);
+            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
 
             return spatialPoint;
         }
@@ -101,20 +106,22 @@ public class SpatialStream implements Serializable {
     public static class CSVToSpatial extends RichMapFunction<ObjectNode, Point> {
 
         UniformGrid uGrid;
+        boolean isAngularGrid = false;
 
         //ctor
         public  CSVToSpatial() {};
-        public  CSVToSpatial(UniformGrid uGrid)
-        {
+        public  CSVToSpatial(UniformGrid uGrid){
+
             this.uGrid = uGrid;
-        };
+            this.isAngularGrid = uGrid.getIsAngularGrid();
+        }
 
         @Override
         public Point map(ObjectNode strTuple) throws Exception {
 
             List<String> strArrayList = Arrays.asList(strTuple.toString().split("\\s*,\\s*"));
 
-            Point spatialPoint = new Point(Double.parseDouble(strArrayList.get(0)), Double.parseDouble(strArrayList.get(1)), uGrid);
+            Point spatialPoint = new Point(Double.parseDouble(strArrayList.get(0)), Double.parseDouble(strArrayList.get(1)), uGrid, isAngularGrid);
 
             return spatialPoint;
         }
