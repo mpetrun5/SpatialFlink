@@ -87,6 +87,7 @@ public class RangeQuery implements Serializable {
                 });
 
         DataStream<String> windowedNeighboringCellIds = spatialStreamWithTsAndWm.keyBy(new KeySelector<Point, String>(){
+
             @Override
             public String getKey(Point p) throws Exception {
                 return p.gridID;
@@ -97,7 +98,8 @@ public class RangeQuery implements Serializable {
                     public void apply(String gridID, TimeWindow timeWindow, Iterable<Point> pointIterator, Collector<String> neighbors) throws Exception {
 
                         // Using set to avoid duplicate cell ids in the output
-                        //HashSet<String> neighboringCells = new HashSet<String>();
+                        HashSet<String> neighboringCells = new HashSet<String>();
+
                         for (Point point : pointIterator) {
 
                             HashSet<String> guaranteedNeighboringCells = uGrid.getGuaranteedNeighboringCells(queryRadius, point);
@@ -107,7 +109,8 @@ public class RangeQuery implements Serializable {
                             //System.out.println("candidateNeighboringCells " + candidateNeighboringCells);
 
                             // Adding all the guaranteed cells into neighboringCells
-                            //neighboringCells.addAll(guaranteedNeighboringCells);
+                            neighboringCells.addAll(guaranteedNeighboringCells);
+
                             for(String cellId: guaranteedNeighboringCells){
                                 neighbors.collect(cellId);
                             }
@@ -122,8 +125,8 @@ public class RangeQuery implements Serializable {
                                     Double distance = HelperClass.computeEuclideanDistance(cellCoordinate.f0, cellCoordinate.f1, point.point.getX(), point.point.getY());
                                     //System.out.println("distance between cell and query object " + distance + " query radius " + queryRadius);
                                     if (distance <= queryRadius) {
-                                        //neighboringCells.add(cellId);
                                         neighbors.collect(cellId);
+                                        neighboringCells.add(cellId);
                                         continue; // If a cell is added, go out of the for loop
                                     }
                                 }
@@ -134,6 +137,7 @@ public class RangeQuery implements Serializable {
                         //    neighbors.collect(cellId);
                         //}
                     }
+
                 }).name("Time Windowed Query Neighboring Cells");
 
         return windowedNeighboringCellIds;

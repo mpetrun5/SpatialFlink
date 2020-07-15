@@ -99,10 +99,11 @@ public class StreamingJob implements Serializable {
 		String aggregateFunction = parameters.get("aggregate");  // "ALL", "SUM", "AVG", "MIN", "MAX" (Default = ALL)
 		double cellLengthDesired = Double.parseDouble(parameters.get("cellLength")); // Default 10x10 Grid
 		double movingSensorRadius = Double.parseDouble(parameters.get("sensorRadius"));
-		double gridAngle = Double.parseDouble(parameters.get("gAngle"));
 
+		double gridAngle = Double.parseDouble(parameters.get("gAngle"));
 		int gRows = Integer.parseInt(parameters.get("gRows"));
 		int gColumns = Integer.parseInt(parameters.get("gColumns"));
+
 		String windowType = parameters.get("wType");  // "TIME" or "COUNT" (Default TIME Window)
 		long windowSize = Long.parseLong(parameters.get("wInterval"));
 		long windowSlideStep = Long.parseLong(parameters.get("wStep"));
@@ -112,18 +113,20 @@ public class StreamingJob implements Serializable {
 		JSONObject inputCoordinatesJSONObj = new JSONObject(geometryCoordinates);
 		JSONArray inputCoordinatesArr = inputCoordinatesJSONObj.getJSONArray("coordinates").getJSONArray(0);
 
+
 		//"--gPointCoordinates", "{coordinates: [139.77667562042726, 35.6190837]"
 		String gridPoint = parameters.get("gPointCoordinates");
 		//System.out.println("gridPoint :" + gridPoint);
 		JSONObject gridPointCoordinatesJSONObj = new JSONObject(gridPoint);
 		JSONArray gridPointCoordinatesArr = gridPointCoordinatesJSONObj.getJSONArray("coordinates");
 
-
 		//--inputs "{topics: [MovingFeatures] }" --output "outputTopic" --queryId "Q1" --aggregate "SUM" --cellLength "100.0" --wType "TIME" --wInterval "2" --wStep "1" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--inputs "{topics: [MovingFeatures, MovingFeatures2] }" --output "outputTopic3" --queryId "Q1" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000"	--wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic3" --queryId "Q1" --sensorRadius "0.001" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000" --wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--queryOption "stayTime" --inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "10.0" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[139.7766, 35.6190], [139.7766, 35.6196], [139.7773, 35.6190],[139.7773, 35.6196], [139.7766, 35.6196]]]}"
-
+		//--inputs "{topics: [MovingFeatures] }" --output "outputTopic" --queryId "Q1" --aggregate "SUM" --cellLength "100.0" --wType "TIME" --wInterval "2" --wStep "1" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
+		//--inputs "{topics: [MovingFeatures, MovingFeatures2] }" --output "outputTopic3" --queryId "Q1" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000"	--wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
+		//--inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic3" --queryId "Q1" --sensorRadius "0.001" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000" --wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 
 		// Cluster
 		//env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -132,7 +135,10 @@ public class StreamingJob implements Serializable {
 		// Local
 		env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
 		String bootStrapServers = "localhost:9092";
-		//String topicName = "MovingFeatures";
+
+		// Event Time, i.e., the time at which each individual event occurred on its producing device.
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(10);
 
 		// Boundaries for MF datasets
 //		double minX = 139.77667562042726;     //X - East-West longitude
@@ -142,11 +148,11 @@ public class StreamingJob implements Serializable {
 
 		UniformGrid uGrid;
 
-		// UGrid for Angular grid
+		// Angular UGrid
 		if (cellLengthDesired > 0 && gridAngle != 0 && (gRows > 0 || gColumns > 0))  {
 			uGrid = new UniformGrid(gridPointCoordinatesArr, gridAngle, cellLengthDesired, gRows, gColumns);
 		}
-		else if (cellLengthDesired > 0) {
+		else if (cellLengthDesired > 0) { // Ordinary UGrid
 			//uGrid = new UniformGrid(cellLengthDesired, minLongitude, maxLongitude, minLatitude, maxLatitude);
 			uGrid = new UniformGrid(cellLengthDesired, inputCoordinatesArr);
 		}
@@ -154,32 +160,47 @@ public class StreamingJob implements Serializable {
 			uGrid = new UniformGrid(10, inputCoordinatesArr);
 		}
 
-		// Event Time, i.e., the time at which each individual event occurred on its producing device.
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(10);
+
 
 		// Preparing Kafka Connection to Get Stream Tuples
 		Properties kafkaProperties = new Properties();
 		kafkaProperties.setProperty("bootstrap.servers", bootStrapServers);
 		kafkaProperties.setProperty("group.id", "messageStream");
 
+
+
 		List<DataStream> geoJSONStreams = new ArrayList<DataStream>();
 		JSONObject inputTopicsJSONObj = new JSONObject(inputTopics);
 
-		// Moving Objects Stream
+		// Ordinary Stream
 		JSONArray movingObjTopicsArr = inputTopicsJSONObj.getJSONArray("movingObjTopics");
 		for (int i = 0; i < movingObjTopicsArr.length(); i++)
 		{
 			String inputTopic = movingObjTopicsArr.getString(i);
 			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
 		}
-
-		// Geometrical Objects Stream
 		List<DataStream<Point>> spatialStreams = new ArrayList<DataStream<Point>>();
-		for(DataStream geoJSONStream: geoJSONStreams) {
+		for(DataStream geoJSONStream: geoJSONStreams)
 			spatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
-		}
 		DataStream<Point> spatialStream = HelperClass.getUnifiedStream(spatialStreams);
+		//spatialStream.print();
+
+
+
+
+		// Sensor Stream
+		geoJSONStreams.clear();
+		JSONArray sensorTopicsArr = inputTopicsJSONObj.getJSONArray("sensorTopics");
+		for (int i = 0; i < sensorTopicsArr.length(); i++)
+		{
+			String inputTopic = sensorTopicsArr.getString(i);
+			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
+		}
+		List<DataStream<Point>> sensorSpatialStreams = new ArrayList<DataStream<Point>>();
+		for(DataStream geoJSONStream: geoJSONStreams)
+			sensorSpatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
+		DataStream<Point> sensorSpatialStream = HelperClass.getUnifiedStream(sensorSpatialStreams);
+
 
 		// Switch to select a specified query
 		switch(queryOption) {
@@ -199,31 +220,14 @@ public class StreamingJob implements Serializable {
 			}
 			case "stayTimeWEmptyCells": {
 				// stayTime Query With Empty Cells
-				// Moving Sensor Stream
-				geoJSONStreams.clear();
-				JSONArray sensorTopicsArr = inputTopicsJSONObj.getJSONArray("sensorTopics");
-				for (int i = 0; i < sensorTopicsArr.length(); i++)
-				{
-					String inputTopic = sensorTopicsArr.getString(i);
-					geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
-				}
-
-				List<DataStream<Point>> sensorSpatialStreams = new ArrayList<DataStream<Point>>();
-				for(DataStream geoJSONStream: geoJSONStreams) {
-					sensorSpatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
-				}
-				DataStream<Point> sensorSpatialStream = HelperClass.getUnifiedStream(sensorSpatialStreams);
-
-				// Get Stay Time With Empty Cells
 				DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = MovingFeatures.CellBasedStayTimeWEmptyCells(spatialStream, sensorSpatialStream, movingSensorRadius, aggregateFunction, windowSize, windowSlideStep, uGrid);
-				//stayTimeWEmptyCells.print();
-				stayTimeWEmptyCells.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+				stayTimeWEmptyCells.print();
+				//stayTimeWEmptyCells.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
 			}
 			default:
 				System.out.println("Input Unrecognized. queryOption must be stayTime OR stayTimeWEmptyCells.");
 		}
-
 
 		// execute program
 		env.execute("Geo Flink");

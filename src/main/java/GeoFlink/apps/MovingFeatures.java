@@ -211,6 +211,7 @@ public class MovingFeatures implements Serializable {
         }
     }
 
+
     // Key selector
     public static class gridCellKeySelector implements KeySelector<Point,String> {
         @Override
