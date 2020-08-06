@@ -138,7 +138,7 @@ public class StreamingJob implements Serializable {
 
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(10);
+		env.setParallelism(30);
 
 		// Boundaries for MF datasets
 //		double minX = 139.77667562042726;     //X - East-West longitude
@@ -159,7 +159,6 @@ public class StreamingJob implements Serializable {
 		else{
 			uGrid = new UniformGrid(10, inputCoordinatesArr);
 		}
-
 
 
 		// Preparing Kafka Connection to Get Stream Tuples

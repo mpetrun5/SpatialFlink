@@ -40,8 +40,10 @@ public class UniformGrid implements Serializable {
 
     final private int CELLINDEXSTRLENGTH = 5;
     double cellLength;
+    double gridAngle;
     int numGridPartitions;
     double cellLengthMeters;
+    org.locationtech.jts.geom.Point angularGridStartingPoint;
     HashSet<String> girdCellsSet = new HashSet<String>();
     STRtree gridTreeIndex;
     //List<Polygon> cellList = new ArrayList<>();
@@ -64,20 +66,25 @@ public class UniformGrid implements Serializable {
         //System.out.println("x: " + x + ", y: " + y);
 
         GeometryFactory geofact = new GeometryFactory();
-        org.locationtech.jts.geom.Point p = geofact.createPoint(new Coordinate(x, y));
+        this.angularGridStartingPoint = geofact.createPoint(new Coordinate(x, y));
+
+        Coordinate destinationPoint = HelperClass.computeDestinationPoint(this.angularGridStartingPoint.getCoordinate(), angleInDegree, cellLengthInMeters);
+        double euclideanDistBetweenPoints = HelperClass.computeEuclideanDistance(this.angularGridStartingPoint.getX(), this.angularGridStartingPoint.getY(), destinationPoint.getX(), destinationPoint.getY());
 
         int numGridDivisions = Math.max(numRows, numColumns);
-        this.cellLength = cellLengthInMeters;
+        this.cellLength = euclideanDistBetweenPoints;
         this.cellLengthMeters = cellLengthInMeters;
+        this.gridAngle = angleInDegree;
+
 
         if(numGridDivisions < 1)
             this.numGridPartitions = 1;
         else
             this.numGridPartitions = numGridDivisions;
 
-        //System.out.println("cellLengthMeters " + cellLengthMeters);
+        // System.out.println("cellLengthMeters " + cellLengthMeters);
         // Populating the girdCellset - contains all the cells in the grid
-        populateGridCells(p.getCoordinate(), angleInDegree);
+        // populateGridCells(angleInDegree);
     }
 
 
@@ -121,7 +128,7 @@ public class UniformGrid implements Serializable {
 
         this.cellLength = (maxX - minX) / this.numGridPartitions;
         this.cellLengthMeters = HelperClass.computeHaverSine(minX, minY, minX + cellLength, minY);
-        //System.out.println("cellLengthMeters " + cellLengthMeters);
+        System.out.println("cellLengthMeters " + cellLengthMeters);
 
         // Populating the girdCellset - contains all the cells in the grid
         populateGridCells();
@@ -216,33 +223,35 @@ public class UniformGrid implements Serializable {
         }
     }
 
-    private void populateGridCells(Coordinate startingPoint, double angleFromTrueNorth){
+    // Populate angular grid cells - polygon approach
+    private void populateGridCells(double angleFromTrueNorth){
 
         this.gridTreeIndex = new STRtree(this.numGridPartitions*this.numGridPartitions);
         this.cellToKeyMap = new TreeMap<Polygon, String>();
-        Coordinate nextStartingPoint = startingPoint;
+        Coordinate gridStartingPoint = this.angularGridStartingPoint.getCoordinate();
+        Coordinate nextStartingPoint = gridStartingPoint;
 
         // Populating the grid
         for (int i = 0; i < this.numGridPartitions; i++) {
             for (int j = 0; j < this.numGridPartitions; j++) {
 
-                Coordinate destinationPoint1 = HelperClass.computeDestinationPoint(startingPoint, angleFromTrueNorth, this.cellLength);
-                Coordinate destinationPoint2 = HelperClass.computeDestinationPoint(startingPoint, angleFromTrueNorth + 45, this.cellLength*Math.sqrt(2));
-                Coordinate destinationPoint3 = HelperClass.computeDestinationPoint(startingPoint, angleFromTrueNorth + 90, this.cellLength);
+                Coordinate destinationPoint1 = HelperClass.computeDestinationPoint(gridStartingPoint, angleFromTrueNorth, this.cellLengthMeters);
+                Coordinate destinationPoint2 = HelperClass.computeDestinationPoint(gridStartingPoint, angleFromTrueNorth + 45, this.cellLengthMeters*Math.sqrt(2));
+                Coordinate destinationPoint3 = HelperClass.computeDestinationPoint(gridStartingPoint, angleFromTrueNorth + 90, this.cellLengthMeters);
 
 
                 ArrayList<Coordinate> cellPolygonCoordinates = new ArrayList<Coordinate>();
-                cellPolygonCoordinates.add(startingPoint);
+                cellPolygonCoordinates.add(gridStartingPoint);
                 cellPolygonCoordinates.add(destinationPoint1);
                 cellPolygonCoordinates.add(destinationPoint2);
                 cellPolygonCoordinates.add(destinationPoint3);
-                cellPolygonCoordinates.add(startingPoint);
+                cellPolygonCoordinates.add(gridStartingPoint);
 
                 // Saving the next cell starting point
                 if(j == this.numGridPartitions -1){
-                    startingPoint = nextStartingPoint;
+                    gridStartingPoint = nextStartingPoint;
                 }else{
-                    startingPoint = destinationPoint1;
+                    gridStartingPoint = destinationPoint1;
                 }
 
                 // Saving the next row starting point
@@ -272,6 +281,39 @@ public class UniformGrid implements Serializable {
 
     }
 
+    // Grid key assignment using trigonometric function
+    public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
+
+        Coordinate gridStartingPoint = this.angularGridStartingPoint.getCoordinate();
+
+        // distance between source and destination coordinates
+        //int xCellIndex = (int)(Math.floor((p.getX() - gridStartingPoint.getX())/this.cellLength));
+        //int yCellIndex = (int)(Math.floor((p.getY() - gridStartingPoint.getY())/this.cellLength));
+        double xDist = p.getX() - gridStartingPoint.getX();
+        double yDist = p.getY() - gridStartingPoint.getY();
+
+        // compute rotated grid distance
+        //double angleInRadians = Math.toRadians(gridAngle);
+        //double x = p.getX()*Math.cos(angleInRadians) - p.getY()*Math.sin(angleInRadians);
+        //double y = p.getX()*Math.sin(angleInRadians) + p.getY()*Math.cos(angleInRadians);
+        double angleInRadians = Math.toRadians(gridAngle);
+        double x = xDist*Math.cos(angleInRadians) - yDist*Math.sin(angleInRadians);
+        double y = xDist*Math.sin(angleInRadians) + yDist*Math.cos(angleInRadians);
+
+        int indexX = (int) Math.round(x/this.cellLength);
+        int indexY = (int) Math.round(y/this.cellLength);
+
+        if(indexX < 0 || indexY < 0 || indexX > this.numGridPartitions || indexY > this.numGridPartitions)
+            return null;
+        else {
+            String key = HelperClass.padLeadingZeroesToInt(indexX, CELLINDEXSTRLENGTH) + HelperClass.padLeadingZeroesToInt(indexY, CELLINDEXSTRLENGTH);
+            //System.out.println("x,y: " + x + ", " + y +", cell Length " + this.cellLength + ", key " + key);
+            return key;
+        }
+    }
+
+/*
+    // Grid key assignment using polygons indexed by tree structure
     public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
 
         // get candidate cells which may contain the point p
@@ -291,38 +333,41 @@ public class UniformGrid implements Serializable {
         }
         return null;
 
-        /*
-        double minX = 139.77667562042726;     //X - East-West longitude
-		double maxX = 139.77722108273215;
-		double minY = 35.6190837;     //Y - North-South latitude
-		double maxY = 35.6195177;
 
-		Coordinate startingPoint = new Coordinate(minX, minY);
-		double cellLen = 60; // length in meters
-        double angle = 45; // in degree
-
-        Coordinate destinationPoint1 = HelperClass.computeDestinationPoint(startingPoint, angle, cellLen);
-        Coordinate destinationPoint2 = HelperClass.computeDestinationPoint(startingPoint, angle + 45, cellLen*Math.sqrt(2));
-        Coordinate destinationPoint3 = HelperClass.computeDestinationPoint(startingPoint, angle + 90, cellLen);
-
-        // Polygon
-        ArrayList<Coordinate> cellPolygonCoordinates = new ArrayList<Coordinate>();
-        cellPolygonCoordinates.add(startingPoint);
-        cellPolygonCoordinates.add(destinationPoint1);
-        cellPolygonCoordinates.add(destinationPoint2);
-        cellPolygonCoordinates.add(destinationPoint3);
-        cellPolygonCoordinates.add(startingPoint);
+//        double minX = 139.77667562042726;     //X - East-West longitude
+//		double maxX = 139.77722108273215;
+//		double minY = 35.6190837;     //Y - North-South latitude
+//		double maxY = 35.6195177;
+//
+//		Coordinate startingPoint = new Coordinate(minX, minY);
+//		double cellLen = 60; // length in meters
+//        double angle = 45; // in degree
+//
+//        Coordinate destinationPoint1 = HelperClass.computeDestinationPoint(startingPoint, angle, cellLen);
+//        Coordinate destinationPoint2 = HelperClass.computeDestinationPoint(startingPoint, angle + 45, cellLen*Math.sqrt(2));
+//        Coordinate destinationPoint3 = HelperClass.computeDestinationPoint(startingPoint, angle + 90, cellLen);
+//
+//        // Polygon
+//        ArrayList<Coordinate> cellPolygonCoordinates = new ArrayList<Coordinate>();
+//        cellPolygonCoordinates.add(startingPoint);
+//        cellPolygonCoordinates.add(destinationPoint1);
+//        cellPolygonCoordinates.add(destinationPoint2);
+//        cellPolygonCoordinates.add(destinationPoint3);
+//        cellPolygonCoordinates.add(startingPoint);
 //        cellPolygonCoordinates.add(new Coordinate(minX, minY));
 //        cellPolygonCoordinates.add(new Coordinate(minX, maxY));
 //        cellPolygonCoordinates.add(new Coordinate(maxX, maxY));
 //        cellPolygonCoordinates.add(new Coordinate(maxX, minY));
 //        cellPolygonCoordinates.add(new Coordinate(minX, minY));
 
-        GeometryFactory geofact = new GeometryFactory();
-        Polygon cell = geofact.createPolygon(cellPolygonCoordinates.toArray(new Coordinate[0]));
+//        GeometryFactory geofact = new GeometryFactory();
+//        Polygon cell = geofact.createPolygon(cellPolygonCoordinates.toArray(new Coordinate[0]));
         //Polygon queryPolygon = new Polygon(queryPolygonCoordinates, uGrid);
-         */
+
     }
+ */
+
+
 
     // Getters and Setters
     public STRtree getGridTreeIndex(){

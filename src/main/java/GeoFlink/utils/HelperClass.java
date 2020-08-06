@@ -35,11 +35,11 @@ public class HelperClass {
 
     // startingPoint and bearing are in degrees
     // Source: https://www.movable-type.co.uk/scripts/latlong.html
-    public static Coordinate computeDestinationPoint(Coordinate startingPoint, double angleFromTrueNorth, double distanceInMeters)
+    public static Coordinate computeDestinationPoint(Coordinate startingPoint, double angleFromTrueNorthInDegrees, double distanceInMeters)
     {
         double lon1 = Math.toRadians(startingPoint.getX());
         double lat1 = Math.toRadians(startingPoint.getY());
-        double bearing = Math.toRadians(angleFromTrueNorth);
+        double bearing = Math.toRadians(angleFromTrueNorthInDegrees);
         double cosOfDist = Math.cos(distanceInMeters/mEarthRadius);
         double sinOfDist = Math.sin(distanceInMeters/mEarthRadius);
         double cosOfLat1 = Math.cos(lat1);
