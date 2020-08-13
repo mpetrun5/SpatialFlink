@@ -127,6 +127,8 @@ public class StreamingJob implements Serializable {
 		//--inputs "{topics: [MovingFeatures] }" --output "outputTopic" --queryId "Q1" --aggregate "SUM" --cellLength "100.0" --wType "TIME" --wInterval "2" --wStep "1" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--inputs "{topics: [MovingFeatures, MovingFeatures2] }" --output "outputTopic3" --queryId "Q1" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000"	--wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		//--inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic3" --queryId "Q1" --sensorRadius "0.001" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000" --wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
+		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[139.7766, 35.6190], [139.7766, 35.6196], [139.7773, 35.6190],[139.7773, 35.6196], [139.7766, 35.6196]]]}" --gPointCoordinates "{coordinates: [139.77667562042726, 35.6190837]}" --gPointCoordinates2 "{coordinates: [139.7766, 35.6190]}" --gRows 35 --gColumns 20 --gAngle 45
+		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [TaxiDrive17MillionGeoJSON], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates "{coordinates: [115.50000, 39.60000]}" --gRows 1000 --gColumns 20 --gAngle 45
 
 		// Cluster
 		//env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -167,7 +169,6 @@ public class StreamingJob implements Serializable {
 		kafkaProperties.setProperty("group.id", "messageStream");
 
 
-
 		List<DataStream> geoJSONStreams = new ArrayList<DataStream>();
 		JSONObject inputTopicsJSONObj = new JSONObject(inputTopics);
 
@@ -184,9 +185,7 @@ public class StreamingJob implements Serializable {
 		DataStream<Point> spatialStream = HelperClass.getUnifiedStream(spatialStreams);
 		//spatialStream.print();
 
-
-
-
+		/*
 		// Sensor Stream
 		geoJSONStreams.clear();
 		JSONArray sensorTopicsArr = inputTopicsJSONObj.getJSONArray("sensorTopics");
@@ -199,6 +198,8 @@ public class StreamingJob implements Serializable {
 		for(DataStream geoJSONStream: geoJSONStreams)
 			sensorSpatialStreams.add(SpatialStream.PointStream(geoJSONStream, "GeoJSONEventTime", uGrid));
 		DataStream<Point> sensorSpatialStream = HelperClass.getUnifiedStream(sensorSpatialStreams);
+		 */
+
 
 
 		// Switch to select a specified query
@@ -219,8 +220,8 @@ public class StreamingJob implements Serializable {
 			}
 			case "stayTimeWEmptyCells": {
 				// stayTime Query With Empty Cells
-				DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = MovingFeatures.CellBasedStayTimeWEmptyCells(spatialStream, sensorSpatialStream, movingSensorRadius, aggregateFunction, windowSize, windowSlideStep, uGrid);
-				stayTimeWEmptyCells.print();
+				//DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = MovingFeatures.CellBasedStayTimeWEmptyCells(spatialStream, sensorSpatialStream, movingSensorRadius, aggregateFunction, windowSize, windowSlideStep, uGrid);
+				//stayTimeWEmptyCells.print();
 				//stayTimeWEmptyCells.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
 			}

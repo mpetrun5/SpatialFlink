@@ -44,7 +44,7 @@ public class SpatialStream implements Serializable {
             pointStream = inputStream.map(new CSVToSpatial(uGrid));
         }
         else if (inputType.equals("GeoJSONEventTime")){
-            pointStream = inputStream.map(new GeoJSONEventTimeToSpatial(uGrid));
+            pointStream = inputStream.map(new GeoJSONEventTimeToSpatial(uGrid)).startNewChain();
         }
 
         return pointStream;
@@ -78,7 +78,8 @@ public class SpatialStream implements Serializable {
     public static class GeoJSONEventTimeToSpatial extends RichMapFunction<ObjectNode, Point> {
 
         UniformGrid uGrid;
-        DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        //DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         boolean isAngularGrid = false;
 
         //ctor
@@ -93,14 +94,30 @@ public class SpatialStream implements Serializable {
         @Override
         public Point map(ObjectNode jsonObj) throws Exception {
 
-            int trackerID = jsonObj.get("value").get("tracker_id").asInt();
-            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("time").asText());
+            // Miraikan Moving Objects Data: {"position": [139.77675127834587, 35.61932839124013, 0.9616967439651489], "properties": {"class_name": "human", "velocity-y": 0.0, "velocity-z": 0.0, "velocity-x": 0.0}, "tracker_id": 10041947, "time": "2019-11-28T16:14:59.497+0900"}
+            // TaxiDrive17MillionGeoJSON: {"geometry": {"coordinates": [116.40181, 39.95289], "type": "Point"}, "properties": {"oID": "1600", "timestamp": "2008-02-08 14:13:28"}, "type": "Feature"}
+
+            // TaxiDrive17MillionGeoJSON Beijing Data
+            int oID = jsonObj.get("value").get("properties").get("oID").asInt();
+            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("properties").get("timestamp").asText());
             long timeStampMillisec = dateTime.getTime();
-            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
+            //System.out.println(timeStampMillisec);
+            Point spatialPoint = new Point(oID, jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
 
             return spatialPoint;
+
+            // Miraikan Moving Objects Data
+//            int trackerID = jsonObj.get("value").get("tracker_id").asInt();
+//            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("time").asText());
+//            long timeStampMillisec = dateTime.getTime();
+//            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
+//
+//            return spatialPoint;
         }
     }
+
+
+
 
     // Assuming that csv string contains longitude and latitude at positions 0 and 1, respectively
     public static class CSVToSpatial extends RichMapFunction<ObjectNode, Point> {

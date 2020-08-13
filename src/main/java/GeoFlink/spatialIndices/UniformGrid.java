@@ -84,7 +84,7 @@ public class UniformGrid implements Serializable {
 
         // System.out.println("cellLengthMeters " + cellLengthMeters);
         // Populating the girdCellset - contains all the cells in the grid
-        // populateGridCells(angleInDegree);
+        populateGridCells(angleInDegree);
     }
 
 
@@ -281,6 +281,8 @@ public class UniformGrid implements Serializable {
 
     }
 
+
+    /*
     // Grid key assignment using trigonometric function
     public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
 
@@ -310,9 +312,9 @@ public class UniformGrid implements Serializable {
             //System.out.println("x,y: " + x + ", " + y +", cell Length " + this.cellLength + ", key " + key);
             return key;
         }
-    }
+    }*/
 
-/*
+
     // Grid key assignment using polygons indexed by tree structure
     public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
 
@@ -365,7 +367,9 @@ public class UniformGrid implements Serializable {
         //Polygon queryPolygon = new Polygon(queryPolygonCoordinates, uGrid);
 
     }
- */
+
+
+
 
 
 
