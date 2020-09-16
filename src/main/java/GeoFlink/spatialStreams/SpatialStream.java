@@ -78,8 +78,9 @@ public class SpatialStream implements Serializable {
     public static class GeoJSONEventTimeToSpatial extends RichMapFunction<ObjectNode, Point> {
 
         UniformGrid uGrid;
+        DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
         //DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-        DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        //DateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         boolean isAngularGrid = false;
 
         //ctor
@@ -98,18 +99,30 @@ public class SpatialStream implements Serializable {
             // TaxiDrive17MillionGeoJSON: {"geometry": {"coordinates": [116.40181, 39.95289], "type": "Point"}, "properties": {"oID": "1600", "timestamp": "2008-02-08 14:13:28"}, "type": "Feature"}
 
             // TaxiDrive17MillionGeoJSON Beijing Data
-            int oID = jsonObj.get("value").get("properties").get("oID").asInt();
-            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("properties").get("timestamp").asText());
+            //int oID = jsonObj.get("value").get("properties").get("oID").asInt();
+            //Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("properties").get("timestamp").asText());
+            //long timeStampMillisec = dateTime.getTime();
+            //System.out.println(timeStampMillisec);
+            //Point spatialPoint = new Point(oID, jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
+
+            //return spatialPoint;
+
+            // Miraikan Moving Objects Topics MovingFeaturesMiraikan
+            // {"geometry": {"type": "Point", "coordinates": [139.77669484647316, 35.61937850551124, 0.7643253207206726]}, "type": "Feature", "id": 10041878, "properties": {"time": "2019-11-28T16:13:19.696"}}
+            int oID = jsonObj.get("value").get("id").asInt();
+            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("properties").get("time").asText());
             long timeStampMillisec = dateTime.getTime();
             //System.out.println(timeStampMillisec);
-            Point spatialPoint = new Point(oID, jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
+            Point spatialPoint = new Point(oID, jsonObj.get("value").get("geometry").get("coordinates").get(0).asDouble(), jsonObj.get("value").get("geometry").get("coordinates").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);                                                                                                                                                                                                                                                                                                                                                                            return spatialPoint;
 
-            return spatialPoint;
+
+
 
             // Miraikan Moving Objects Data
 //            int trackerID = jsonObj.get("value").get("tracker_id").asInt();
 //            Date dateTime = simpleDateFormat.parse(jsonObj.get("value").get("time").asText());
 //            long timeStampMillisec = dateTime.getTime();
+
 //            Point spatialPoint = new Point(trackerID, jsonObj.get("value").get("position").get(0).asDouble(), jsonObj.get("value").get("position").get(1).asDouble(), timeStampMillisec, uGrid, isAngularGrid);
 //
 //            return spatialPoint;

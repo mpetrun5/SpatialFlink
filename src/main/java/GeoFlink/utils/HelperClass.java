@@ -113,24 +113,7 @@ public class HelperClass {
     public static List<Tuple2<Double, Double>> getCellCoordinates(String cellId, UniformGrid uGrid)
     {
         ArrayList<Integer> cellIndices = HelperClass.getIntCellIndices(cellId);
-        List<Tuple2<Double, Double>> cellCoordinates = new ArrayList<Tuple2<Double, Double>>();
-        double minX = uGrid.getMinX();
-        double minY = uGrid.getMinY();
-        double cellLength = uGrid.getCellLength();
-
-        double cellMinX = minX + (cellLength * cellIndices.get(0));
-        double cellMinY = minY + (cellLength * cellIndices.get(1));
-
-        double cellMaxX = minX + (cellLength * (cellIndices.get(0) + 1));
-        double cellMaxY = minY + (cellLength * (cellIndices.get(1) + 1));
-
-        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
-        cellCoordinates.add(new Tuple2<>(cellMinX, cellMaxY));
-        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMaxY));
-        cellCoordinates.add(new Tuple2<>(cellMaxX, cellMinY));
-        cellCoordinates.add(new Tuple2<>(cellMinX, cellMinY));
-
-        return cellCoordinates;
+        return getCellCoordinates(cellIndices, uGrid);
     }
 
     public static Integer getCellLayerWRTQueryCell(String queryCellID, String cellID)

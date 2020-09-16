@@ -92,6 +92,8 @@ public class StreamingJob implements Serializable {
 		final StreamExecutionEnvironment env;
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 
+
+
 		String queryOption = parameters.get("queryOption");
 		String inputTopics = parameters.get("inputs");
 		String outputTopic = parameters.get("output");
@@ -103,6 +105,8 @@ public class StreamingJob implements Serializable {
 		double gridAngle = Double.parseDouble(parameters.get("gAngle"));
 		int gRows = Integer.parseInt(parameters.get("gRows"));
 		int gColumns = Integer.parseInt(parameters.get("gColumns"));
+
+		//int operatorParallelism = Integer.parseInt(parameters.get("parallelism"));
 
 		String windowType = parameters.get("wType");  // "TIME" or "COUNT" (Default TIME Window)
 		long windowSize = Long.parseLong(parameters.get("wInterval"));
@@ -130,17 +134,21 @@ public class StreamingJob implements Serializable {
 		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[139.7766, 35.6190], [139.7766, 35.6196], [139.7773, 35.6190],[139.7773, 35.6196], [139.7766, 35.6196]]]}" --gPointCoordinates "{coordinates: [139.77667562042726, 35.6190837]}" --gPointCoordinates2 "{coordinates: [139.7766, 35.6190]}" --gRows 35 --gColumns 20 --gAngle 45
 		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [TaxiDrive17MillionGeoJSON], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates "{coordinates: [115.50000, 39.60000]}" --gRows 1000 --gColumns 20 --gAngle 45
 
+		// For GUI execution
+		//--queryOption="stayTimeAngularGrid" --inputs="{movingObjTopics: [TaxiDrive17MillionGeoJSON]}" --output="outputTopic" --queryId="Q1" --sensorRadius="0.0005" --aggregate="AVG" --cellLength="360" --wType="TIME" --wInterval="10" --wStep="10" --gType="Polygon" --gCoordinates="{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates="{coordinates: [115.50000, 39.60000]}" --gRows="50" --gColumns="20" --gAngle="45"
+
 		// Cluster
-		//env = StreamExecutionEnvironment.getExecutionEnvironment();
-		//String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
+		String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
 
 		// Local
-		env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-		String bootStrapServers = "localhost:9092";
+		//env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
+		//String bootStrapServers = "localhost:9092";
 
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(30);
+		//env.setParallelism(30);
+		//env.setParallelism(operatorParallelism);
 
 		// Boundaries for MF datasets
 //		double minX = 139.77667562042726;     //X - East-West longitude
@@ -151,11 +159,13 @@ public class StreamingJob implements Serializable {
 		UniformGrid uGrid;
 
 		// Angular UGrid
-		if (cellLengthDesired > 0 && gridAngle != 0 && (gRows > 0 || gColumns > 0))  {
+		if (cellLengthDesired > 0 && gridAngle != 0 && (gRows > 0 || gColumns > 0)){  // gridAngle removed for the sake of demo only
 			uGrid = new UniformGrid(gridPointCoordinatesArr, gridAngle, cellLengthDesired, gRows, gColumns);
 		}
+		else if (cellLengthDesired > 0 && gridAngle == 0 && (gRows > 0 || gColumns > 0)){  // Ordinary UGrid
+			uGrid = new UniformGrid(gridPointCoordinatesArr, cellLengthDesired, gRows, gColumns);
+		}
 		else if (cellLengthDesired > 0) { // Ordinary UGrid
-			//uGrid = new UniformGrid(cellLengthDesired, minLongitude, maxLongitude, minLatitude, maxLatitude);
 			uGrid = new UniformGrid(cellLengthDesired, inputCoordinatesArr);
 		}
 		else{
@@ -212,10 +222,17 @@ public class StreamingJob implements Serializable {
 				break;
 			}
 			case "stayTimeAngularGrid": {
+
+				DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTimeAngularGrid;
 				// Moving Objects Stay Time
-				DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTimeAngularGrid = MovingFeatures.CellBasedStayTimeAngularGrid(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
-				windowedCellBasedStayTimeAngularGrid.print();
-				//windowedCellBasedStayTimeAngularGrid.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+				if (gridAngle != 0) {
+					windowedCellBasedStayTimeAngularGrid = MovingFeatures.CellBasedStayTimeAngularGrid(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
+				}
+				else{ // No need to use angular grid if the gridAngle = 0
+					windowedCellBasedStayTimeAngularGrid = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
+				}
+				//windowedCellBasedStayTimeAngularGrid.print();
+				windowedCellBasedStayTimeAngularGrid.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
 			}
 			case "stayTimeWEmptyCells": {

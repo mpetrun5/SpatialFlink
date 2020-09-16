@@ -132,15 +132,21 @@ public class MovingFeatures implements Serializable {
         return stayTimeWEmptyCells;
     }
 
-    //--------------- ~ MOVING FEATURES STAY TIME WITH EMPTY CELLS -----------------//
-
     //--------------- MOVING FEATURES STAY TIME -----------------//
     public static DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> CellBasedStayTime(DataStream<Point> pointStream, String aggregateFunction, String windowType, long windowSize, long windowSlideStep) {
+
+        // Filtering out the cells which do not fall into the grid cells
+        DataStream<Point> spatialStreamWithoutNullCellID = pointStream.filter(new FilterFunction<Point>() {
+            @Override
+            public boolean filter(Point p) throws Exception {
+                return (p.gridID != null);
+            }
+        });
 
         // Spatial stream with Timestamps and Watermarks
         // Max Allowed Lateness: windowSize
         DataStream<Point> spatialStreamWithTsAndWm =
-                pointStream.assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<Point>(Time.seconds(windowSize)) {
+                spatialStreamWithoutNullCellID.assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<Point>(Time.seconds(windowSize)) {
                     @Override
                     public long extractTimestamp(Point p) {
                         return p.timeStampMillisec;

@@ -37,7 +37,14 @@ public class MFKafkaOutputSchema implements Serializable, KafkaSerializationSche
     public ProducerRecord<byte[], byte[]> serialize(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> element, @Nullable Long timestamp) {
 
         ArrayList<Integer> cellIndices = HelperClass.getIntCellIndices(element.f0);
-        List<Tuple2<Double, Double>> cellCoordinates = HelperClass.getCellCoordinates(cellIndices, this.uGrid);
+        List<Tuple2<Double, Double>> cellCoordinates;
+
+        if(this.uGrid.getIsAngularGrid()){
+            cellCoordinates = uGrid.getAngularGridCellCoordinates(element.f0);
+        }
+        else{
+            cellCoordinates = HelperClass.getCellCoordinates(cellIndices, this.uGrid);
+        }
 
         JSONObject jsonObj = new JSONObject();
         jsonObj.put("queryId", this.queryId);

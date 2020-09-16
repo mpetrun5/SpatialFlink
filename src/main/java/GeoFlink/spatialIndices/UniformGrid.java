@@ -88,6 +88,34 @@ public class UniformGrid implements Serializable {
     }
 
 
+    public UniformGrid(JSONArray gridPointCoordinatesArr, double cellLengthInMeters, int numRows, int numColumns)
+    {
+        // Here p is the starting point of the grid
+        double x = gridPointCoordinatesArr.getDouble(0);
+        double y = gridPointCoordinatesArr.getDouble(1);
+
+        GeometryFactory geofact = new GeometryFactory();
+        this.angularGridStartingPoint = geofact.createPoint(new Coordinate(x, y));
+        
+        int numGridDivisions = Math.max(numRows, numColumns);
+        double maxDiagonalGridDistFromOrigin = Math.sqrt(2)*cellLengthInMeters*numGridDivisions;        
+        Coordinate destinationPoint = HelperClass.computeDestinationPoint(this.angularGridStartingPoint.getCoordinate(), 45, maxDiagonalGridDistFromOrigin);
+
+        this.minX = x;     //X - East-West longitude
+        this.maxX = destinationPoint.getX();
+        this.minY = y;     //Y - North-South latitude
+        this.maxY = destinationPoint.getY();
+
+        this.numGridPartitions = numGridDivisions;
+        adjustCoordinatesForSquareGrid();
+        this.cellLength = (maxX - minX) / numGridDivisions;
+        this.cellLengthMeters = cellLengthInMeters;
+
+        // Populating the girdCellset - contains all the cells in the grid
+        populateGridCells();
+    }
+
+
     public UniformGrid(double cellLengthDesired, JSONArray inputCoordinatesArr)
     {
         initializeGridCoordinates(inputCoordinatesArr);
@@ -281,8 +309,25 @@ public class UniformGrid implements Serializable {
 
     }
 
+    // Returns the cell coordinates of angular grid
+    public List<Tuple2<Double, Double>> getAngularGridCellCoordinates(String cellId)
+    {
+        List<Tuple2<Double, Double>> cellCoordinatesList = new ArrayList<Tuple2<Double, Double>>();
+        Coordinate[] cellCoordinates;
 
-    /*
+        for (Map.Entry<Polygon, String> entry : cellToKeyMap.entrySet()) {
+            if (entry.getValue().equals(cellId)) {
+                cellCoordinates = entry.getKey().getCoordinates();
+
+                for (Coordinate coord : cellCoordinates) {
+                    cellCoordinatesList.add(new Tuple2<>(coord.getX(), coord.getY()));
+                }
+                break;
+            }
+        }
+        return cellCoordinatesList;
+    }
+
     // Grid key assignment using trigonometric function
     public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
 
@@ -312,8 +357,9 @@ public class UniformGrid implements Serializable {
             //System.out.println("x,y: " + x + ", " + y +", cell Length " + this.cellLength + ", key " + key);
             return key;
         }
-    }*/
+    }
 
+    /*
 
     // Grid key assignment using polygons indexed by tree structure
     public String getAngularGridCellKey(org.locationtech.jts.geom.Point p){
@@ -367,6 +413,7 @@ public class UniformGrid implements Serializable {
         //Polygon queryPolygon = new Polygon(queryPolygonCoordinates, uGrid);
 
     }
+    */
 
 
 
