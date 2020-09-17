@@ -18,12 +18,17 @@ package GeoFlink.spatialOperators;
 
 import GeoFlink.spatialIndices.UniformGrid;
 import GeoFlink.spatialObjects.Point;
+import GeoFlink.spatialObjects.Polygon;
+import GeoFlink.utils.Comparators;
 import GeoFlink.utils.HelperClass;
 import GeoFlink.utils.SpatialDistanceComparator;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -35,15 +40,14 @@ import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.PriorityQueue;
+import java.util.*;
 
 public class KNNQuery implements Serializable {
 
     public KNNQuery() {}
 
-    // Grid-based approach - Iterative Distributed
-    public static DataStream<PriorityQueue<Tuple2<Point, Double>>> SpatialKNNQuery(DataStream<Point> pointStream, Point queryPoint, Integer k, int windowSize, int windowSlideStep, UniformGrid uGrid) throws IOException {
+    //--------------- GRID-BASED kNN QUERY - POINT - Iterative Distributed -----------------//
+    public static DataStream<PriorityQueue<Tuple2<Point, Double>>> SpatialIterativeKNNQuery(DataStream<Point> pointStream, Point queryPoint, Integer k, int windowSize, int windowSlideStep, UniformGrid uGrid) throws IOException {
 
         // Control tuple oID = -99999
         IterativeStream<Point> iterativeKeyedStream = pointStream.iterate();
@@ -81,7 +85,8 @@ public class KNNQuery implements Serializable {
                 .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize),Time.seconds(windowSlideStep)))
                 .apply(new WindowFunction<Point, PriorityQueue<Tuple2<Point, Double>>, Tuple, TimeWindow>() {
 
-                    PriorityQueue<Tuple2<Point, Double>> kNNPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+                    //PriorityQueue<Tuple2<Point, Double>> kNNPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+                    PriorityQueue<Tuple2<Point, Double>> kNNPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.inTuplePointDistanceComparator());
 
                     @Override
                     public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Point> inputTuples, Collector<PriorityQueue<Tuple2<Point, Double>>> outputStream) throws Exception {
@@ -90,11 +95,11 @@ public class KNNQuery implements Serializable {
                         for (Point p : inputTuples) {
 
                             if (kNNPQ.size() < k) {
-                                double distance = HelperClass.computeEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                double distance = HelperClass.getPointPointEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
                                 kNNPQ.offer(new Tuple2<Point, Double>(p, distance));
                             } else {
-                                double distance = HelperClass.computeEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
-                                double largestDistInPQ = HelperClass.computeEuclideanDistance(kNNPQ.peek().f0.point.getX(), kNNPQ.peek().f0.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                double distance = HelperClass.getPointPointEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                double largestDistInPQ = HelperClass.getPointPointEuclideanDistance(kNNPQ.peek().f0.point.getX(), kNNPQ.peek().f0.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
 
                                 if (largestDistInPQ > distance) { // remove element with the largest distance and add the new element
                                     kNNPQ.poll();
@@ -113,8 +118,11 @@ public class KNNQuery implements Serializable {
                 .windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize),Time.seconds(windowSlideStep)))
                 .apply(new AllWindowFunction<PriorityQueue<Tuple2<Point, Double>>, PriorityQueue<Tuple2<Point, Double>>, TimeWindow>() {
 
-                    PriorityQueue<Tuple2<Point, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
-                    PriorityQueue<Tuple2<Point, Double>> controlPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+                    //PriorityQueue<Tuple2<Point, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+                    //PriorityQueue<Tuple2<Point, Double>> controlPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+
+                    PriorityQueue<Tuple2<Point, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.inTuplePointDistanceComparator());
+                    PriorityQueue<Tuple2<Point, Double>> controlPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.inTuplePointDistanceComparator());
 
 
                     @Override
@@ -174,4 +182,351 @@ public class KNNQuery implements Serializable {
             }
         });
     }
+
+    //--------------- GRID-BASED kNN QUERY - POINT -----------------//
+    public static DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Point, Double>>>> SpatialKNNQuery(DataStream<Point> pointStream, Point queryPoint, double queryRadius, Integer k, int windowSize, int windowSlideStep, UniformGrid uGrid) throws IOException {
+
+        Set<String> guaranteedNeighboringCells = uGrid.getGuaranteedNeighboringCells(queryRadius, queryPoint.gridID);
+        Set<String> candidateNeighboringCells = uGrid.getCandidateNeighboringCells(queryRadius, queryPoint.gridID, guaranteedNeighboringCells);
+
+        DataStream<Point> filteredPoints = pointStream.filter(new FilterFunction<Point>() {
+            @Override
+            public boolean filter(Point point) throws Exception {
+                return ((candidateNeighboringCells.contains(point.gridID)) || (guaranteedNeighboringCells.contains(point.gridID)));
+            }
+        });
+
+        DataStream<PriorityQueue<Tuple2<Point, Double>>> windowedKNN = filteredPoints.keyBy(new KeySelector<Point, String>() {
+            @Override
+            public String getKey(Point p) throws Exception {
+                return p.gridID;
+            }
+        }).window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                .apply(new WindowFunction<Point, PriorityQueue<Tuple2<Point, Double>>, String, TimeWindow>() {
+
+                    //PriorityQueue<Tuple2<Point, Double>> kNNPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new SpatialDistanceComparator(queryPoint));
+                    PriorityQueue<Tuple2<Point, Double>> kNNPQ = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.inTuplePointDistanceComparator());
+
+                    @Override
+                    public void apply(String gridID, TimeWindow timeWindow, Iterable<Point> inputTuples, Collector<PriorityQueue<Tuple2<Point, Double>>> outputStream) throws Exception {
+                        kNNPQ.clear();
+
+                        for (Point p : inputTuples) {
+
+                            if (kNNPQ.size() < k) {
+                                double distance = HelperClass.getPointPointEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                kNNPQ.offer(new Tuple2<Point, Double>(p, distance));
+                            } else {
+                                double distance = HelperClass.getPointPointEuclideanDistance(p.point.getX(), p.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                //double largestDistInPQ = HelperClass.getPointPointEuclideanDistance(kNNPQ.peek().f0.point.getX(), kNNPQ.peek().f0.point.getY(), queryPoint.point.getX(), queryPoint.point.getY());
+                                // PQ is maintained in descending order with the object with the largest distance from query point at the top/peek
+                                double largestDistInPQ = kNNPQ.peek().f1;
+
+                                if (largestDistInPQ > distance) { // remove element with the largest distance and add the new element
+                                    kNNPQ.poll();
+                                    kNNPQ.offer(new Tuple2<Point, Double>(p, distance));
+                                }
+                            }
+                        }
+
+                        // Output stream
+                        outputStream.collect(kNNPQ);
+                    }
+                }).name("Windowed (Apply) Grid Based");
+
+
+        // windowAll to Generate integrated kNN -
+        DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Point, Double>>>> windowAllKNN = windowedKNN
+                .windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize),Time.seconds(windowSlideStep)))
+                .apply(new AllWindowFunction<PriorityQueue<Tuple2<Point, Double>>, Tuple3<Long, Long, PriorityQueue<Tuple2<Point, Double>>>, TimeWindow>() {
+
+                    //PriorityQueue<Tuple2<Point, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.SpatialDistanceComparator(queryPoint));
+                    PriorityQueue<Tuple2<Point, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Point, Double>>(k, new Comparators.inTuplePointDistanceComparator());
+
+                    @Override
+                    public void apply(TimeWindow timeWindow, Iterable<PriorityQueue<Tuple2<Point, Double>>> input, Collector<Tuple3<Long, Long, PriorityQueue<Tuple2<Point, Double>>>> output) throws Exception {
+                        kNNPQWinAll.clear();
+                        // Iterate through all PriorityQueues
+                        for (PriorityQueue<Tuple2<Point, Double>> pq : input) {
+                            for(Tuple2<Point, Double> pqTuple: pq) {
+                                if (kNNPQWinAll.size() < k) {
+                                    kNNPQWinAll.offer(pqTuple);
+                                }
+                                else{
+                                    double largestDistInkNNPQ = kNNPQWinAll.peek().f1;
+                                    if(largestDistInkNNPQ > pqTuple.f1){ // remove element with the largest distance and add the new element
+                                        kNNPQWinAll.poll();
+                                        kNNPQWinAll.offer(pqTuple);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Adding the windowedAll output
+                        output.collect(Tuple3.of(timeWindow.getStart(), timeWindow.getEnd(), kNNPQWinAll));
+                    }
+                });
+
+        //Output kNN Stream
+        return windowAllKNN;
+    }
+
+
+    //--------------- GRID-BASED kNN QUERY - POINT-POLYGON -----------------//
+    //Outputs a stream of winStartTime, winEndTime and a PQ
+    public static DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> SpatialKNNQuery(DataStream<Polygon> polygonStream, Point queryPoint, double queryRadius, Integer k, UniformGrid uGrid, int windowSize, int windowSlideStep) throws IOException {
+
+        // Generate a replicated polygon stream to know the grid IDs of each polygon
+        DataStream<Polygon> replicatedPolygonStream = polygonStream.flatMap(new HelperClass.ReplicatePolygonStream());
+
+        // Compute the neighboring layers cells for filtering
+        Set<String> guaranteedNeighboringCells = uGrid.getGuaranteedNeighboringCells(queryRadius, queryPoint.gridID);
+        Set<String> candidateNeighboringCells = uGrid.getCandidateNeighboringCells(queryRadius, queryPoint.gridID, guaranteedNeighboringCells);
+
+        // Filter out the polygons which lie greater than queryRadius of the query point
+        DataStream<Polygon> filteredPolygons = replicatedPolygonStream.filter(new FilterFunction<Polygon>() {
+            @Override
+            public boolean filter(Polygon poly) throws Exception {
+                return ((candidateNeighboringCells.contains(poly.gridID)) || (guaranteedNeighboringCells.contains(poly.gridID)));
+            }
+        });
+
+        DataStream<PriorityQueue<Tuple2<Polygon, Double>>> windowedKNN = filteredPolygons.keyBy(new KeySelector<Polygon, String>() {
+            @Override
+            public String getKey(Polygon poly) throws Exception {
+                return poly.gridID;
+            }
+        }).window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                .apply(new WindowFunction<Polygon, PriorityQueue<Tuple2<Polygon, Double>>, String, TimeWindow>() {
+
+                    PriorityQueue<Tuple2<Polygon, Double>> kNNPQ = new PriorityQueue<Tuple2<Polygon, Double>>(k, new Comparators.inTuplePolygonDistanceComparator());
+
+                    @Override
+                    public void apply(String gridID, TimeWindow timeWindow, Iterable<Polygon> inputTuples, Collector<PriorityQueue<Tuple2<Polygon, Double>>> outputStream) throws Exception {
+                        kNNPQ.clear();
+
+                        for (Polygon poly : inputTuples) {
+
+                            if (kNNPQ.size() < k) {
+                                double distance = HelperClass.getPointPolygonMinEuclideanDistance(queryPoint, poly);
+                                kNNPQ.offer(new Tuple2<Polygon, Double>(poly, distance));
+                            } else {
+                                double distance = HelperClass.getPointPolygonMinEuclideanDistance(queryPoint, poly);
+                                //double largestDistInPQ = HelperClass.getPointPolygonMinEuclideanDistance(queryPoint, kNNPQ.peek().f0);
+                                // PQ is maintained in descending order with the object with the largest distance from query point at the top/peek
+                                double largestDistInPQ = kNNPQ.peek().f1;
+
+                                if (largestDistInPQ > distance) { // remove element with the largest distance and add the new element
+                                    kNNPQ.poll();
+                                    kNNPQ.offer(new Tuple2<Polygon, Double>(poly, distance));
+                                }
+                            }
+                        }
+
+                        // Output stream
+                        outputStream.collect(kNNPQ);
+                    }
+                }).name("Windowed (Apply) Grid Based");
+
+
+        // windowAll to Generate integrated kNN -
+        DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> windowAllKNN = windowedKNN
+                .windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize),Time.seconds(windowSlideStep)))
+                .apply(new AllWindowFunction<PriorityQueue<Tuple2<Polygon, Double>>, Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>, TimeWindow>() {
+
+                    PriorityQueue<Tuple2<Polygon, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Polygon, Double>>(k, new Comparators.inTuplePolygonDistanceComparator());
+                    Set<Long> objIDs = new HashSet<Long>();
+
+                    @Override
+                    public void apply(TimeWindow timeWindow, Iterable<PriorityQueue<Tuple2<Polygon, Double>>> input, Collector<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> output) throws Exception {
+                        kNNPQWinAll.clear();
+                        objIDs.clear();
+                        // Iterate through all PriorityQueues
+                        for (PriorityQueue<Tuple2<Polygon, Double>> pq : input) {
+                            for(Tuple2<Polygon, Double> candidPQTuple: pq) {
+                                // If there are less than required (k) number of tuples in kNNPQWinAll
+                                if (kNNPQWinAll.size() < k) {
+                                        // Add an object if it is not already there
+                                    if(!objIDs.contains(candidPQTuple.f0.objID)) {
+                                        kNNPQWinAll.offer(candidPQTuple);
+                                        objIDs.add(candidPQTuple.f0.objID);
+                                    }else{
+                                        // (To avoid duplicate addition of an object in kNN) Object is already in PQ, check the existing object's distance compared to current object
+                                        for (Tuple2<Polygon, Double> existingPQTuple : kNNPQWinAll){
+                                            if(existingPQTuple.f0.objID == candidPQTuple.f0.objID && existingPQTuple.f1 > candidPQTuple.f1){
+                                                kNNPQWinAll.remove(existingPQTuple);
+                                                kNNPQWinAll.offer(candidPQTuple);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                // If there are already required (k) number of tuples in kNNPQWinAll
+                                else{
+                                    double largestDistInkNNPQ = kNNPQWinAll.peek().f1;
+                                    if (largestDistInkNNPQ > candidPQTuple.f1) {
+                                        // Add an object if it is not already there
+                                        if(!objIDs.contains(candidPQTuple.f0.objID)) {
+                                            // remove element with the largest distance and add the new element
+                                            kNNPQWinAll.poll();
+                                            objIDs.remove(kNNPQWinAll.peek().f0.objID);
+
+                                            kNNPQWinAll.offer(candidPQTuple);
+                                            objIDs.add(candidPQTuple.f0.objID);
+                                        }
+                                        else {
+                                            // (To avoid duplicate addition of an object in kNN) Object is already in PQ, check the existing object's distance compared to current object
+                                            for (Tuple2<Polygon, Double> existingPQTuple : kNNPQWinAll) {
+                                                if (existingPQTuple.f0.objID == candidPQTuple.f0.objID && existingPQTuple.f1 > candidPQTuple.f1) {
+                                                    kNNPQWinAll.remove(existingPQTuple);
+                                                    kNNPQWinAll.offer(candidPQTuple);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Adding the windowedAll output
+                        output.collect(Tuple3.of(timeWindow.getStart(), timeWindow.getEnd(), kNNPQWinAll));
+                    }
+                });
+
+        //Output kNN Stream
+        return windowAllKNN;
+    }
+
+
+    //--------------- GRID-BASED kNN QUERY - POLYGON-POLYGON -----------------//
+    public static DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> SpatialKNNQuery(DataStream<Polygon> polygonStream, Polygon queryPolygon, double queryRadius, Integer k, UniformGrid uGrid, int windowSize, int windowSlideStep) throws IOException {
+
+        // Generate a replicated polygon stream to know the grid IDs of each polygon
+        DataStream<Polygon> replicatedPolygonStream = polygonStream.flatMap(new HelperClass.ReplicatePolygonStream());
+
+        // Compute the neighboring layers cells for filtering
+        Set<String> guaranteedNeighboringCells = uGrid.getGuaranteedNeighboringCells(queryRadius, queryPolygon);
+        Set<String> candidateNeighboringCells = uGrid.getCandidateNeighboringCells(queryRadius, queryPolygon, guaranteedNeighboringCells);
+
+        // Filter out the polygons which lie greater than queryRadius of the query point
+        DataStream<Polygon> filteredPolygons = replicatedPolygonStream.filter(new FilterFunction<Polygon>() {
+            @Override
+            public boolean filter(Polygon poly) throws Exception {
+                return ((candidateNeighboringCells.contains(poly.gridID)) || (guaranteedNeighboringCells.contains(poly.gridID)));
+            }
+        });
+
+        DataStream<PriorityQueue<Tuple2<Polygon, Double>>> windowedKNN = filteredPolygons.keyBy(new KeySelector<Polygon, String>() {
+            @Override
+            public String getKey(Polygon poly) throws Exception {
+                return poly.gridID;
+            }
+        }).window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                .apply(new WindowFunction<Polygon, PriorityQueue<Tuple2<Polygon, Double>>, String, TimeWindow>() {
+
+                    PriorityQueue<Tuple2<Polygon, Double>> kNNPQ = new PriorityQueue<Tuple2<Polygon, Double>>(k, new Comparators.inTuplePolygonDistanceComparator());
+
+                    @Override
+                    public void apply(String gridID, TimeWindow timeWindow, Iterable<Polygon> inputTuples, Collector<PriorityQueue<Tuple2<Polygon, Double>>> outputStream) throws Exception {
+                        kNNPQ.clear();
+
+                        for (Polygon poly : inputTuples) {
+
+                            if (kNNPQ.size() < k) {
+                                double distance = HelperClass.getPolygonPolygonMinEuclideanDistance(queryPolygon, poly);
+                                kNNPQ.offer(new Tuple2<Polygon, Double>(poly, distance));
+                            } else {
+                                double distance = HelperClass.getPolygonPolygonMinEuclideanDistance(queryPolygon, poly);
+                                //double largestDistInPQ = HelperClass.getPointPolygonMinEuclideanDistance(queryPoint, kNNPQ.peek().f0);
+                                // PQ is maintained in descending order with the object with the largest distance from query point at the top/peek
+                                double largestDistInPQ = kNNPQ.peek().f1;
+
+                                if (largestDistInPQ > distance) { // remove element with the largest distance and add the new element
+                                    kNNPQ.poll();
+                                    kNNPQ.offer(new Tuple2<Polygon, Double>(poly, distance));
+                                }
+                            }
+                        }
+
+
+
+                        // Output stream
+                        outputStream.collect(kNNPQ);
+                    }
+                }).name("Windowed (Apply) Grid Based");
+
+
+        // windowAll to Generate integrated kNN -
+        DataStream<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> windowAllKNN = windowedKNN
+                .windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize),Time.seconds(windowSlideStep)))
+                .apply(new AllWindowFunction<PriorityQueue<Tuple2<Polygon, Double>>, Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>, TimeWindow>() {
+
+                    PriorityQueue<Tuple2<Polygon, Double>> kNNPQWinAll = new PriorityQueue<Tuple2<Polygon, Double>>(k, new Comparators.inTuplePolygonDistanceComparator());
+                    Set<Long> objIDs = new HashSet<Long>();
+
+                    @Override
+                    public void apply(TimeWindow timeWindow, Iterable<PriorityQueue<Tuple2<Polygon, Double>>> input, Collector<Tuple3<Long, Long, PriorityQueue<Tuple2<Polygon, Double>>>> output) throws Exception {
+                        kNNPQWinAll.clear();
+                        objIDs.clear();
+                        // Iterate through all PriorityQueues
+                        for (PriorityQueue<Tuple2<Polygon, Double>> pq : input) {
+                            for(Tuple2<Polygon, Double> candidPQTuple: pq) {
+                                // If there are less than required (k) number of tuples in kNNPQWinAll
+                                if (kNNPQWinAll.size() < k) {
+                                    // Add an object if it is not already there
+                                    if(!objIDs.contains(candidPQTuple.f0.objID)) {
+                                        kNNPQWinAll.offer(candidPQTuple);
+                                        objIDs.add(candidPQTuple.f0.objID);
+                                    }else{
+                                        // (To avoid duplicate addition of an object in kNN) Object is already in PQ, check the existing object's distance compared to current object
+                                        for (Tuple2<Polygon, Double> existingPQTuple : kNNPQWinAll){
+                                            if(existingPQTuple.f0.objID == candidPQTuple.f0.objID && existingPQTuple.f1 > candidPQTuple.f1){
+                                                kNNPQWinAll.remove(existingPQTuple);
+                                                kNNPQWinAll.offer(candidPQTuple);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                // If there are already required (k) number of tuples in kNNPQWinAll
+                                else{
+                                    double largestDistInkNNPQ = kNNPQWinAll.peek().f1;
+                                    if (largestDistInkNNPQ > candidPQTuple.f1) {
+                                        // Add an object if it is not already there
+                                        if(!objIDs.contains(candidPQTuple.f0.objID)) {
+                                            // remove element with the largest distance and add the new element
+                                            kNNPQWinAll.poll();
+                                            objIDs.remove(kNNPQWinAll.peek().f0.objID);
+
+                                            kNNPQWinAll.offer(candidPQTuple);
+                                            objIDs.add(candidPQTuple.f0.objID);
+                                        }
+                                        else {
+                                            // (To avoid duplicate addition of an object in kNN) Object is already in PQ, check the existing object's distance compared to current object
+                                            for (Tuple2<Polygon, Double> existingPQTuple : kNNPQWinAll) {
+                                                if (existingPQTuple.f0.objID == candidPQTuple.f0.objID && existingPQTuple.f1 > candidPQTuple.f1) {
+                                                    kNNPQWinAll.remove(existingPQTuple);
+                                                    kNNPQWinAll.offer(candidPQTuple);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Adding the windowedAll output
+                        output.collect(Tuple3.of(timeWindow.getStart(), timeWindow.getEnd(), kNNPQWinAll));
+                    }
+                });
+
+        //Output kNN Stream
+        return windowAllKNN;
+    }
+
+
+
+
 }

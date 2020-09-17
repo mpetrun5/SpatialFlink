@@ -16,13 +16,18 @@ limitations under the License.
 
 package GeoFlink.spatialObjects;
 
+import GeoFlink.utils.HelperClass;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 
 import java.io.Serializable;
 
 public class SpatialObject extends Object implements Serializable {
 
     public int objID;
+    //TODO: Assign timestamp
     public long timeStampMillisec;
 
     public SpatialObject() {}

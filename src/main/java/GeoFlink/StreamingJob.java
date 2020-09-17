@@ -138,12 +138,12 @@ public class StreamingJob implements Serializable {
 		//--queryOption="stayTimeAngularGrid" --inputs="{movingObjTopics: [TaxiDrive17MillionGeoJSON]}" --output="outputTopic" --queryId="Q1" --sensorRadius="0.0005" --aggregate="AVG" --cellLength="360" --wType="TIME" --wInterval="10" --wStep="10" --gType="Polygon" --gCoordinates="{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates="{coordinates: [115.50000, 39.60000]}" --gRows="50" --gColumns="20" --gAngle="45"
 
 		// Cluster
-		env = StreamExecutionEnvironment.getExecutionEnvironment();
-		String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
+		//env = StreamExecutionEnvironment.getExecutionEnvironment();
+		//String bootStrapServers = "172.16.0.64:9092, 172.16.0.81:9092";
 
 		// Local
-		//env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-		//String bootStrapServers = "localhost:9092";
+		env =  StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
+		String bootStrapServers = "localhost:9092";
 
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -231,7 +231,7 @@ public class StreamingJob implements Serializable {
 				else{ // No need to use angular grid if the gridAngle = 0
 					windowedCellBasedStayTimeAngularGrid = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
 				}
-				//windowedCellBasedStayTimeAngularGrid.print();
+				windowedCellBasedStayTimeAngularGrid.print();
 				windowedCellBasedStayTimeAngularGrid.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
 			}

@@ -5,7 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1324c6e9-e930-41b7-8e36-209d061d1d70" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Polygon.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/Comparators.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dependency-reduced-pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dependency-reduced-pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialIndices/UniformGrid.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialIndices/UniformGrid.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/Point.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialObjects/SpatialObject.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/JoinQuery.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/JoinQuery.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/KNNQuery.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/KNNQuery.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/RangeQuery.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialOperators/RangeQuery.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/spatialStreams/SpatialStream.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/HelperClass.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/HelperClass.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/SpatialDistanceComparator.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/utils/SpatialDistanceComparator.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +64,7 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="findjar.last.used.dir" value="$PROJECT_DIR$" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../GeoFlink/pom.xml" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../MFEventTimeGeoFlink_Backup/pom.xml" />
     <property name="project.structure.last.edited" value="Project" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.0" />
@@ -60,7 +75,7 @@
       <option name="ALTERNATIVE_JRE_PATH" value="11" />
       <option name="MAIN_CLASS_NAME" value="GeoFlink.StreamingJob" />
       <module name="GeoFlinkProject" />
-      <option name="PROGRAM_PARAMETERS" value="--queryOption &quot;stayTimeAngularGrid&quot; --inputs &quot;{movingObjTopics: [MovingFeaturesMiraikan]}&quot; --output &quot;outputTopic&quot; --queryId &quot;Q1&quot; --sensorRadius &quot;0.0005&quot; --aggregate &quot;AVG&quot; --cellLength &quot;1&quot; --wType &quot;TIME&quot; --wInterval &quot;5&quot; --wStep &quot;5&quot; --gType &quot;Polygon&quot; --gCoordinates &quot;{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}&quot; --gPointCoordinates &quot;{coordinates: [139.7766756204, 35.6190837]}&quot; --gRows 50 --gColumns 20 --gAngle 1" />
+      <option name="PROGRAM_PARAMETERS" value="--queryOption &quot;stayTimeAngularGrid&quot; --inputs &quot;{movingObjTopics: [MovingFeaturesMiraikan]}&quot; --output &quot;outputTopic&quot; --queryId &quot;Q1&quot; --sensorRadius &quot;0.0005&quot; --aggregate &quot;AVG&quot; --cellLength &quot;1&quot; --wType &quot;TIME&quot; --wInterval &quot;5&quot; --wStep &quot;5&quot; --gType &quot;Polygon&quot; --gCoordinates &quot;{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}&quot; --gPointCoordinates &quot;{coordinates: [139.7766756204, 35.6190837]}&quot; --gRows 50 --gColumns 20 --gAngle 0" />
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="GeoFlink.*" />
@@ -107,12 +122,12 @@
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="1776" y="295" width="1477" height="849" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1600254212174">
+    <state x="1776" y="295" width="1477" height="849" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1600331590051">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state x="3656" y="538" key="#com.intellij.execution.impl.EditConfigurationsDialog/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591782220372" />
     <state x="777" y="377" key="#com.intellij.execution.impl.EditConfigurationsDialog/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1592547229596" />
-    <state x="1776" y="295" width="1477" height="849" key="#com.intellij.execution.impl.EditConfigurationsDialog/67.27.3773.2133@67.27.3773.2133" timestamp="1600254212174" />
+    <state x="1776" y="295" width="1477" height="849" key="#com.intellij.execution.impl.EditConfigurationsDialog/67.27.3773.2133@67.27.3773.2133" timestamp="1600331590051" />
     <state x="1670" y="631" width="374" height="595" key="#com.intellij.ide.util.MemberChooser" timestamp="1592983302211">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
@@ -122,35 +137,35 @@
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state x="1686" y="839" width="524" height="507" key="#com.intellij.refactoring.typeMigration.ui.FailedConversionsDialog/67.27.3773.2133@67.27.3773.2133" timestamp="1600252725869" />
-    <state x="1777" y="839" width="424" height="518" key="FileChooserDialogImpl" timestamp="1594366373181">
+    <state x="1777" y="839" width="424" height="518" key="FileChooserDialogImpl" timestamp="1600327744581">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state x="4300" y="822" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591788119035" />
-    <state x="1777" y="839" width="424" height="518" key="FileChooserDialogImpl/67.27.3773.2133@67.27.3773.2133" timestamp="1594366373181" />
-    <state width="3719" height="271" key="GridCell.Tab.0.bottom" timestamp="1600254768692">
+    <state x="1777" y="839" width="424" height="518" key="FileChooserDialogImpl/67.27.3773.2133@67.27.3773.2133" timestamp="1600327744581" />
+    <state width="3719" height="203" key="GridCell.Tab.0.bottom" timestamp="1600331531189">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state width="3729" height="812" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
     <state width="2449" height="281" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1592548338468" />
-    <state width="3719" height="271" key="GridCell.Tab.0.bottom/67.27.3773.2133@67.27.3773.2133" timestamp="1600254768692" />
-    <state width="3719" height="271" key="GridCell.Tab.0.center" timestamp="1600254768691">
+    <state width="3719" height="203" key="GridCell.Tab.0.bottom/67.27.3773.2133@67.27.3773.2133" timestamp="1600331531189" />
+    <state width="3719" height="203" key="GridCell.Tab.0.center" timestamp="1600331531188">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state width="3729" height="812" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
     <state width="2449" height="281" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1592548338467" />
-    <state width="3719" height="271" key="GridCell.Tab.0.center/67.27.3773.2133@67.27.3773.2133" timestamp="1600254768691" />
-    <state width="3719" height="271" key="GridCell.Tab.0.left" timestamp="1600254768691">
+    <state width="3719" height="203" key="GridCell.Tab.0.center/67.27.3773.2133@67.27.3773.2133" timestamp="1600331531188" />
+    <state width="3719" height="203" key="GridCell.Tab.0.left" timestamp="1600331531188">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state width="3729" height="812" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
     <state width="2449" height="281" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1592548338467" />
-    <state width="3719" height="271" key="GridCell.Tab.0.left/67.27.3773.2133@67.27.3773.2133" timestamp="1600254768691" />
-    <state width="3719" height="271" key="GridCell.Tab.0.right" timestamp="1600254768692">
+    <state width="3719" height="203" key="GridCell.Tab.0.left/67.27.3773.2133@67.27.3773.2133" timestamp="1600331531188" />
+    <state width="3719" height="203" key="GridCell.Tab.0.right" timestamp="1600331531188">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
     <state width="3729" height="812" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.3840.2160@2560.0.3840.2160" timestamp="1591854572780" />
     <state width="2449" height="281" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.3840.2160@65.24.2495.1416" timestamp="1592548338467" />
-    <state width="3719" height="271" key="GridCell.Tab.0.right/67.27.3773.2133@67.27.3773.2133" timestamp="1600254768692" />
+    <state width="3719" height="203" key="GridCell.Tab.0.right/67.27.3773.2133@67.27.3773.2133" timestamp="1600331531188" />
     <state width="3719" height="1438" key="GridCell.Tab.1.bottom" timestamp="1600250567208">
       <screen x="67" y="27" width="3773" height="2133" />
     </state>
