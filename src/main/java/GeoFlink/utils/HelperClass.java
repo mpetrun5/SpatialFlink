@@ -96,6 +96,7 @@ public class HelperClass {
     // assigning grid cell ID
     public static String assignGridCellID(Coordinate coordinate, UniformGrid uGrid) {
 
+        //System.out.println(uGrid.getCellLength());
         // Direct approach to compute the cellIDs (Key)
         // int xCellIndex = (int)(Math.floor((point.getX() - uGrid.getMinX())/uGrid.getCellLength()));
         // int yCellIndex = (int)(Math.floor((point.getY() - uGrid.getMinY())/uGrid.getCellLength()));

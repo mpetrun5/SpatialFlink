@@ -30,6 +30,9 @@ import org.locationtech.jts.index.strtree.STRtree;
 import java.io.Serializable;
 import java.util.*;
 
+
+
+
 public class UniformGrid implements Serializable {
 
     double minX;     //X - East-West longitude
@@ -87,7 +90,7 @@ public class UniformGrid implements Serializable {
     }
 
 
-    public UniformGrid(JSONArray gridPointCoordinatesArr, double cellLengthInMeters, int numRows, int numColumns)
+    public UniformGrid(JSONArray gridPointCoordinatesArr, double cellLengthInMeters, int numRows, int numColumns, boolean GCSCoordinates)
     {
         // Here p is the starting point of the grid
         double x = gridPointCoordinatesArr.getDouble(0);
@@ -97,13 +100,23 @@ public class UniformGrid implements Serializable {
         this.angularGridStartingPoint = geofact.createPoint(new Coordinate(x, y));
         
         int numGridDivisions = Math.max(numRows, numColumns);
-        double maxDiagonalGridDistFromOrigin = Math.sqrt(2)*cellLengthInMeters*numGridDivisions;        
-        Coordinate destinationPoint = HelperClass.computeDestinationPoint(this.angularGridStartingPoint.getCoordinate(), 45, maxDiagonalGridDistFromOrigin);
 
         this.minX = x;     //X - East-West longitude
-        this.maxX = destinationPoint.getX();
         this.minY = y;     //Y - North-South latitude
-        this.maxY = destinationPoint.getY();
+
+        if(!GCSCoordinates){
+
+            this.maxX = minX + numGridDivisions * cellLengthInMeters;
+            this.maxY = minY + numGridDivisions * cellLengthInMeters;
+        }
+        else {
+
+            double maxDiagonalGridDistFromOrigin = Math.sqrt(2) * cellLengthInMeters * numGridDivisions;
+            Coordinate destinationPoint = HelperClass.computeDestinationPoint(this.angularGridStartingPoint.getCoordinate(), 45, maxDiagonalGridDistFromOrigin);
+
+            this.maxX = destinationPoint.getX();
+            this.maxY = destinationPoint.getY();
+        }
 
         this.numGridPartitions = numGridDivisions;
         adjustCoordinatesForSquareGrid();
@@ -289,8 +302,6 @@ public class UniformGrid implements Serializable {
                 GeometryFactory geofact = new GeometryFactory();
                 org.locationtech.jts.geom.Polygon cell = geofact.createPolygon(cellPolygonCoordinates.toArray(new Coordinate[0]));
                 //System.out.println(cell);
-
-
 
                 // Storing the cell into the gridTreeIndex
                 gridTreeIndex.insert(cell.getEnvelopeInternal(), cell);

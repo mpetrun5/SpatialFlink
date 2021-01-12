@@ -98,6 +98,7 @@ public class Point extends SpatialObject implements Serializable {
             this.gridID = uGrid.getAngularGridCellKey(point);
         }else{
             this.gridID = HelperClass.assignGridCellID(point.getCoordinate(), uGrid);
+            //System.out.println(this.gridID);
         }
     }
 

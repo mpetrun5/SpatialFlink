@@ -20,6 +20,7 @@ package GeoFlink;
 
 import GeoFlink.apps.MFKafkaOutputSchema;
 import GeoFlink.apps.MovingFeatures;
+import GeoFlink.apps.MovingFeaturesNaive;
 import GeoFlink.spatialIndices.UniformGrid;
 import GeoFlink.spatialObjects.Point;
 import GeoFlink.spatialOperators.JoinQuery;
@@ -99,6 +100,9 @@ public class StreamingJob implements Serializable {
 		String outputTopic = parameters.get("output");
 		String queryID = parameters.get("queryId");
 		String aggregateFunction = parameters.get("aggregate");  // "ALL", "SUM", "AVG", "MIN", "MAX" (Default = ALL)
+
+		String GCSCoordinatesStr = parameters.get("GCSCoordinates");
+
 		double cellLengthDesired = Double.parseDouble(parameters.get("cellLength")); // Default 10x10 Grid
 		double movingSensorRadius = Double.parseDouble(parameters.get("sensorRadius"));
 
@@ -133,7 +137,9 @@ public class StreamingJob implements Serializable {
 		//--inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic3" --queryId "Q1" --sensorRadius "0.001" --aggregate "SUM" --cellLength "10.0" --wType "COUNT" --wInterval "1000" --wStep "1000" --gType "Polygon" --gCoordinates "{coordinates: [[[139.77667562042726, 35.6190837], [139.77667562042726, 35.6195177], [139.77722108273215, 35.6190837],[139.77722108273215, 35.6195177], [139.77667562042726, 35.6190837]]]}"
 		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [MovingFeatures, MovingFeatures2], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[139.7766, 35.6190], [139.7766, 35.6196], [139.7773, 35.6190],[139.7773, 35.6196], [139.7766, 35.6196]]]}" --gPointCoordinates "{coordinates: [139.77667562042726, 35.6190837]}" --gPointCoordinates2 "{coordinates: [139.7766, 35.6190]}" --gRows 35 --gColumns 20 --gAngle 45
 		// --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [TaxiDrive17MillionGeoJSON], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "2" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates "{coordinates: [115.50000, 39.60000]}" --gRows 1000 --gColumns 20 --gAngle 45
-
+		// --queryOption "naiveStayTime" --inputs "{movingObjTopics: [GeoJSONwithCRS03]}" --output "outputTopic1" --queryId "Q1" --GCSCoordinates "false" --sensorRadius "0.0005" --aggregate "AVG" --cellLength "0.5" --wType "TIME" --wInterval "10" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates "{coordinates: [-5061.771566548391,-42385.84023166007]}" --gRows 96 --gColumns 108 --gAngle 0
+		// TaxiDrive Working (change the data parsing in Spatial Stream): --queryOption "stayTimeAngularGrid" --inputs "{movingObjTopics: [TaxiDrive17MillionGeoJSON], sensorTopics: [MovingFeatures2]}" --output "outputTopic" --queryId "Q1" --sensorRadius "0.0005" --aggregate "SUM" --cellLength "100" --wType "TIME" --wInterval "100" --wStep "10" --gType "Polygon" --gCoordinates "{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates "{coordinates: [115.50000, 39.60000]}" --GCSCoordinates "true" --gRows 100 --gColumns 20 --gAngle 0
+		// synthetic10M10KTrajectories
 		// For GUI execution
 		//--queryOption="stayTimeAngularGrid" --inputs="{movingObjTopics: [TaxiDrive17MillionGeoJSON]}" --output="outputTopic" --queryId="Q1" --sensorRadius="0.0005" --aggregate="AVG" --cellLength="360" --wType="TIME" --wInterval="10" --wStep="10" --gType="Polygon" --gCoordinates="{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}" --gPointCoordinates="{coordinates: [115.50000, 39.60000]}" --gRows="50" --gColumns="20" --gAngle="45"
 
@@ -147,7 +153,7 @@ public class StreamingJob implements Serializable {
 
 		// Event Time, i.e., the time at which each individual event occurred on its producing device.
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		//env.setParallelism(30);
+		//env.setParallelism(5);
 		//env.setParallelism(operatorParallelism);
 
 		// Boundaries for MF datasets
@@ -156,14 +162,24 @@ public class StreamingJob implements Serializable {
 //		double minY = 35.6190837;     //Y - North-South latitude
 //		double maxY = 35.6195177;
 
+		// Boundaries for Taxi Drive dataset and synthetic10M10KTrajectories
+		double minX = 115.50000;     //X - East-West longitude
+		double maxX = 117.60000;
+		double minY = 39.60000;     //Y - North-South latitude
+		double maxY = 41.10000;
+
 		UniformGrid uGrid;
 
+		// Defining Grid
+		uGrid = new UniformGrid(gRows, minX, maxX, minY, maxY);
+
+		/*
 		// Angular UGrid
 		if (cellLengthDesired > 0 && gridAngle != 0 && (gRows > 0 || gColumns > 0)){  // gridAngle removed for the sake of demo only
 			uGrid = new UniformGrid(gridPointCoordinatesArr, gridAngle, cellLengthDesired, gRows, gColumns);
 		}
 		else if (cellLengthDesired > 0 && gridAngle == 0 && (gRows > 0 || gColumns > 0)){  // Ordinary UGrid
-			uGrid = new UniformGrid(gridPointCoordinatesArr, cellLengthDesired, gRows, gColumns);
+			uGrid = new UniformGrid(gridPointCoordinatesArr, cellLengthDesired, gRows, gColumns, Boolean.parseBoolean(GCSCoordinatesStr));
 		}
 		else if (cellLengthDesired > 0) { // Ordinary UGrid
 			uGrid = new UniformGrid(cellLengthDesired, inputCoordinatesArr);
@@ -171,7 +187,7 @@ public class StreamingJob implements Serializable {
 		else{
 			uGrid = new UniformGrid(10, inputCoordinatesArr);
 		}
-
+		*/
 
 		// Preparing Kafka Connection to Get Stream Tuples
 		Properties kafkaProperties = new Properties();
@@ -188,6 +204,7 @@ public class StreamingJob implements Serializable {
 		{
 			String inputTopic = movingObjTopicsArr.getString(i);
 			geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest()));
+			//geoJSONStreams.add(env.addSource(new FlinkKafkaConsumer<>(inputTopic, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromLatest()));
 		}
 		List<DataStream<Point>> spatialStreams = new ArrayList<DataStream<Point>>();
 		for(DataStream geoJSONStream: geoJSONStreams)
@@ -231,7 +248,7 @@ public class StreamingJob implements Serializable {
 				else{ // No need to use angular grid if the gridAngle = 0
 					windowedCellBasedStayTimeAngularGrid = MovingFeatures.CellBasedStayTime(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
 				}
-				windowedCellBasedStayTimeAngularGrid.print();
+				//windowedCellBasedStayTimeAngularGrid.print();
 				windowedCellBasedStayTimeAngularGrid.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
 			}
@@ -241,6 +258,17 @@ public class StreamingJob implements Serializable {
 				//stayTimeWEmptyCells.print();
 				//stayTimeWEmptyCells.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
 				break;
+			}
+			case "stayTimeIncremental": {
+				// Moving Objects Stay Time
+				DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> windowedCellBasedStayTime = MovingFeaturesNaive.CellBasedStayTimeIncremental(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
+				//windowedCellBasedStayTime.print();
+				windowedCellBasedStayTime.addSink(new FlinkKafkaProducer<>(outputTopic, new MFKafkaOutputSchema(outputTopic, queryID, aggregateFunction, uGrid), kafkaProperties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+				break;
+			}
+			case "naiveStayTime": {
+				DataStream<Tuple4<Long, Long, HashMap<String, Long>, HashMap<String, Integer>>> windowedCellBasedStayTimeNaive = MovingFeaturesNaive.CellBasedStayTimeNaive(spatialStream, aggregateFunction, windowType, windowSize, windowSlideStep);
+				//windowedCellBasedStayTimeNaive.print();
 			}
 			default:
 				System.out.println("Input Unrecognized. queryOption must be stayTime OR stayTimeWEmptyCells.");

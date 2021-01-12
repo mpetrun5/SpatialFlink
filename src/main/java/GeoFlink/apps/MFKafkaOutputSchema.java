@@ -2,7 +2,7 @@ package GeoFlink.apps;
 
 import GeoFlink.spatialIndices.UniformGrid;
 import GeoFlink.utils.HelperClass;
-import jdk.nashorn.api.scripting.JSObject;
+//import jdk.nashorn.api.scripting.JSObject;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
@@ -47,36 +47,56 @@ public class MFKafkaOutputSchema implements Serializable, KafkaSerializationSche
         }
 
         JSONObject jsonObj = new JSONObject();
-        jsonObj.put("queryId", this.queryId);
-        jsonObj.put("aggregate", this.aggregateFunction);
 
-        JSONObject outputObj = new JSONObject();
-        jsonObj.put("output", outputObj);
+        //JSONObject outputObj = new JSONObject();
+        //jsonObj.put("output", outputObj);
+
+        JSONObject propertiesObj = new JSONObject();
+
+        jsonObj.put("properties", propertiesObj);
+        propertiesObj.put("aggregate", this.aggregateFunction);
 
         JSONArray window = new JSONArray();
         window.put(element.f2);
         window.put(element.f3);
-        outputObj.put("window", window);
+        propertiesObj.put("window", window);
 
         JSONArray cellIds = new JSONArray();
         cellIds.put(cellIndices.get(0));
         cellIds.put(cellIndices.get(1));
-        outputObj.put("cellIndices", cellIds);
+        propertiesObj.put("cellIndices", cellIds);
+
+        jsonObj.put("type", "Feature");
+
+        JSONObject geometryObj = new JSONObject();
+        jsonObj.put("geometry", geometryObj);
+
+        geometryObj.put("type", "Polygon");
 
         JSONArray coordinates = new JSONArray();
-        outputObj.put("coordinates", coordinates);
+        JSONArray innerCoordinatesArray = new JSONArray();
+        coordinates.put(innerCoordinatesArray);
 
+        geometryObj.put("coordinates", coordinates);
+        //POLYGON ((139.77670226414034 35.619087819229755, 139.77670227379417 35.61908826882146, 139.7767028268609 35.6190882609738, 139.77670281720708 35.6190878113821, 139.77670226414034 35.619087819229755))
+
+        //String poly = "POLYGON ((";
         for(Tuple2<Double, Double> cellCoordinate: cellCoordinates) {
             JSONArray coordinatePoint = new JSONArray();
             coordinatePoint.put(cellCoordinate.f0);
             coordinatePoint.put(cellCoordinate.f1);
-            coordinates.put(coordinatePoint);
+            innerCoordinatesArray.put(coordinatePoint);
+            //poly += cellCoordinate.f0 + " " + cellCoordinate.f1 + ",";
         }
 
-        outputObj.put("numOfObjects", element.f1);
+        //poly = poly.substring(0, poly.length()-1);
+        //poly += "))";
+        //System.out.println(poly);
+        propertiesObj.put("numOfObjects", element.f1);
+        propertiesObj.put("queryId", this.queryId);
 
         JSONArray stayTime = new JSONArray();
-        outputObj.put("stayTime", stayTime);
+        propertiesObj.put("stayTime", stayTime);
 
         for (Map.Entry<Integer, Long> entry : element.f4.entrySet()){
             JSONObject stayTimeObj = new JSONObject();

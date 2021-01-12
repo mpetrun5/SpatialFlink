@@ -5,13 +5,19 @@ import GeoFlink.spatialObjects.Point;
 import GeoFlink.spatialOperators.RangeQuery;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -54,7 +60,8 @@ public class MovingFeatures implements Serializable {
                     public String getKey(Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>> stayTime) throws Exception {
                         return stayTime.f0;
                     }})
-                .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                //.window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                .window(SlidingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
                 .apply(new CoGroupFunction<String, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>>() {
                     @Override
                     public void coGroup(Iterable<String> cellIds, Iterable<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimes, Collector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> output) throws Exception {
@@ -106,7 +113,9 @@ public class MovingFeatures implements Serializable {
                     }
                 });
 
-        DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = coGroupedStream.windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep))).apply(new AllWindowFunction<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, TimeWindow>() {
+        //DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = coGroupedStream.windowAll(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep))).apply(new AllWindowFunction<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, TimeWindow>() {
+        DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> stayTimeWEmptyCells = coGroupedStream.windowAll(SlidingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep))).apply(new AllWindowFunction<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, TimeWindow>() {
+
             @Override
             public void apply(TimeWindow timeWindow, Iterable<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> inputStream, Collector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> outputStream) throws Exception {
 
@@ -167,7 +176,8 @@ public class MovingFeatures implements Serializable {
 
             DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> tWindowedCellBasedStayTime = spatialStreamWithTsAndWm
                     .keyBy(new gridCellKeySelector())
-                    .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                    //.window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                    .window(SlidingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
                     .process(new TimeWindowProcessFunction(aggregateFunction)).name("Time Windowed Moving Features");
 
             return tWindowedCellBasedStayTime;
@@ -204,19 +214,18 @@ public class MovingFeatures implements Serializable {
                     .process(new CountWindowProcessFunction(aggregateFunction)).name("Count Windowed Moving Features");
 
             return cWindowedCellBasedStayTime;
-
         }
         else { // Default TIME Window
 
             DataStream<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> tWindowedCellBasedStayTime = spatialStreamWithTsAndWm
                     .keyBy(new gridCellKeySelector())
-                    .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                    //.window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep)))
+                    .window(SlidingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlideStep))) // Event Time
                     .process(new TimeWindowProcessFunction(aggregateFunction)).name("Time Windowed Moving Features");
 
             return tWindowedCellBasedStayTime;
         }
     }
-
 
     // Key selector
     public static class gridCellKeySelector implements KeySelector<Point,String> {
@@ -254,7 +263,7 @@ public class MovingFeatures implements Serializable {
             int minTrajLengthObjID = Integer.MIN_VALUE;
             Long maxTrajLength = Long.MIN_VALUE;
             int maxTrajLengthObjID = Integer.MIN_VALUE;
-            Long sumTrajLength = 0L;
+            Long sumTrajLength = 0L; // Maintains sum of all trajectories of a cell
 
             for (Point p : input) {
                 Long currMinTimestamp = minTimestampTrackerID.get(p.objID);
@@ -302,8 +311,6 @@ public class MovingFeatures implements Serializable {
                 }
             }
 
-
-
             // Tuple5<Key/CellID, #ObjectsInCell, windowStartTime, windowEndTime, Map<TrajId, TrajLength>>
             if(this.aggregateFunction.equalsIgnoreCase("ALL")){
                 output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
@@ -337,7 +344,171 @@ public class MovingFeatures implements Serializable {
         }
     }
 
-    // Time Window Process Function
+
+    //Time Window Process Function
+    //ProcessWindowFunction<IN, OUT, KEY, W extends Window>
+    public static class TimeWindowProcessFunction extends ProcessWindowFunction<Point, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, String, TimeWindow> {
+
+        // HashMap<TrackerID, timestamp>
+        HashMap<Integer, Long> minTimestampTrackerID = new HashMap<Integer, Long>();
+        HashMap<Integer, Long> maxTimestampTrackerID = new HashMap<Integer, Long>();
+        // HashMap <TrackerID, TrajLength>
+        HashMap<Integer, Long> trackerIDTrajLength = new HashMap<Integer, Long>();
+
+        private ValueState<Long> tuplesCounterValState;
+
+
+        String aggregateFunction;
+        public TimeWindowProcessFunction(String aggregateFunction){
+            this.aggregateFunction = aggregateFunction;
+        }
+
+        @Override
+        public void open(Configuration config) {
+            ValueStateDescriptor<Long> tuplesCounterDescriptor = new ValueStateDescriptor<Long>(
+                    "tuplesCounterDescriptor", // state name
+                    BasicTypeInfo.LONG_TYPE_INFO);
+
+            this.tuplesCounterValState = getRuntimeContext().getState(tuplesCounterDescriptor);
+        }
+
+        @Override
+        // KEY key, Context context, Iterable<IN> elements, Collector<OUT> out
+        public void process(String key, Context context, Iterable<Point> input, Collector<Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>> output) throws Exception {
+
+            minTimestampTrackerID.clear();
+            maxTimestampTrackerID.clear();
+
+            Long tuplesCounterLocal = tuplesCounterValState.value();
+            if(tuplesCounterLocal == null)
+                tuplesCounterLocal = 0L;
+
+            // Iterate through all the points corresponding to a single grid-cell within the scope of the window
+            for (Point p : input) {
+                tuplesCounterLocal++;
+                Long currMinTimestamp = minTimestampTrackerID.get(p.objID);
+                Long currMaxTimestamp = maxTimestampTrackerID.get(p.objID);
+
+                if (currMinTimestamp != null) { // If exists replace else insert
+
+                    if (p.timeStampMillisec < currMinTimestamp) {
+                        minTimestampTrackerID.replace(p.objID, p.timeStampMillisec);
+                    } else if (p.timeStampMillisec > currMaxTimestamp) {
+                        maxTimestampTrackerID.replace(p.objID, p.timeStampMillisec);
+                    }
+
+                } else {
+                    minTimestampTrackerID.put(p.objID, p.timeStampMillisec);
+                    maxTimestampTrackerID.put(p.objID, p.timeStampMillisec);
+                }
+            }
+
+            tuplesCounterValState.update(tuplesCounterLocal);
+
+            // Generating Output based on aggregateFunction variable
+            // Tuple5<Key/CellID, #ObjectsInCell, windowStartTime, windowEndTime, Map<TrajId, TrajLength>>
+            if(this.aggregateFunction.equalsIgnoreCase("ALL")){
+
+                trackerIDTrajLength.clear();
+                for (Map.Entry<Integer, Long> entry : minTimestampTrackerID.entrySet()) {
+                    Integer objID = entry.getKey();
+                    Long currMinTimestamp = entry.getValue();
+                    Long currMaxTimestamp = maxTimestampTrackerID.get(objID);
+
+                    trackerIDTrajLength.put(objID, (currMaxTimestamp-currMinTimestamp));
+                }
+                output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                        minTimestampTrackerID.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+            }
+            else if(this.aggregateFunction.equalsIgnoreCase("SUM") || this.aggregateFunction.equalsIgnoreCase("AVG")){
+
+                trackerIDTrajLength.clear();
+                Long sumTrajLength = 0L;
+                for (Map.Entry<Integer, Long> entry : minTimestampTrackerID.entrySet()) {
+                    Integer objID = entry.getKey();
+                    Long currMinTimestamp = entry.getValue();
+                    Long currMaxTimestamp = maxTimestampTrackerID.get(objID);
+
+                    sumTrajLength += (currMaxTimestamp-currMinTimestamp);
+                }
+
+                if(this.aggregateFunction.equalsIgnoreCase("SUM"))
+                {
+                    trackerIDTrajLength.put(Integer.MIN_VALUE, sumTrajLength);
+                    output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                            minTimestampTrackerID.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+                }
+                else // AVG
+                {
+                    Long avgTrajLength = (Long)Math.round((sumTrajLength * 1.0)/(minTimestampTrackerID.size() * 1.0));
+                    trackerIDTrajLength.put(Integer.MIN_VALUE, avgTrajLength);
+                    output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                            minTimestampTrackerID.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+                }
+            }
+            else if(this.aggregateFunction.equalsIgnoreCase("MIN")){
+
+                Long minTrajLength = Long.MAX_VALUE;
+                int minTrajLengthObjID = Integer.MIN_VALUE;
+                trackerIDTrajLength.clear();
+
+                for (Map.Entry<Integer, Long> entry : minTimestampTrackerID.entrySet()) {
+                    Integer objID = entry.getKey();
+                    Long currMinTimestamp = entry.getValue();
+                    Long currMaxTimestamp = maxTimestampTrackerID.get(objID);
+
+                    Long trajLength = currMaxTimestamp-currMinTimestamp;
+
+                    if(trajLength < minTrajLength){
+                        minTrajLength = trajLength;
+                        minTrajLengthObjID = objID;
+                    }
+                }
+
+                trackerIDTrajLength.put(minTrajLengthObjID, minTrajLength);
+                output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                        minTimestampTrackerID.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+            }
+            else if(this.aggregateFunction.equalsIgnoreCase("MAX")){
+
+                Long maxTrajLength = Long.MIN_VALUE;
+                int maxTrajLengthObjID = Integer.MIN_VALUE;
+                trackerIDTrajLength.clear();
+
+                for (Map.Entry<Integer, Long> entry : minTimestampTrackerID.entrySet()) {
+                    Integer objID = entry.getKey();
+                    Long currMinTimestamp = entry.getValue();
+                    Long currMaxTimestamp = maxTimestampTrackerID.get(objID);
+
+                    Long trajLength = currMaxTimestamp-currMinTimestamp;
+
+                    if(trajLength > maxTrajLength){
+                        maxTrajLength = trajLength;
+                        maxTrajLengthObjID = objID;
+                    }
+                }
+
+                trackerIDTrajLength.put(maxTrajLengthObjID, maxTrajLength);
+                output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                        minTimestampTrackerID.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+            }
+            else{
+                trackerIDTrajLength.clear();
+                for (Map.Entry<Integer, Long> entry : minTimestampTrackerID.entrySet()) {
+                    Integer objID = entry.getKey();
+                    Long currMinTimestamp = entry.getValue();
+                    Long currMaxTimestamp = maxTimestampTrackerID.get(objID);
+
+                    trackerIDTrajLength.put(objID, (currMaxTimestamp-currMinTimestamp));
+                }
+                output.collect(new Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>(key,
+                        trackerIDTrajLength.size(), context.window().getStart(), context.window().getEnd(), trackerIDTrajLength));
+            }
+        }
+    }
+
+
+    //Time Window Process Function
     //ProcessWindowFunction<IN, OUT, KEY, W extends Window>
     public static class TimeWindowProcessFunction extends ProcessWindowFunction<Point, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, String, TimeWindow> {
 
@@ -367,11 +538,14 @@ public class MovingFeatures implements Serializable {
             int maxTrajLengthObjID = Integer.MIN_VALUE;
             Long sumTrajLength = 0L;
 
+            // Iterate through all the points corresponding to a single grid-cell within the scope of the window
             for (Point p : input) {
                 Long currMinTimestamp = minTimestampTrackerID.get(p.objID);
                 Long currMaxTimestamp = maxTimestampTrackerID.get(p.objID);
                 Long minTimestamp = currMinTimestamp;
                 Long maxTimestamp = currMaxTimestamp;
+
+                //System.out.println("point timestamp " + p.timeStampMillisec + " Window bounds: " + context.window().getStart() + ", " + context.window().getEnd());
 
                 if (currMinTimestamp != null) { // If exists replace else insert
                     if (p.timeStampMillisec < currMinTimestamp) {
@@ -445,4 +619,6 @@ public class MovingFeatures implements Serializable {
             }
         }
     }
+
+     */
 }
