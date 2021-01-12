@@ -345,6 +345,7 @@ public class MovingFeatures implements Serializable {
     }
 
 
+    /*
     //Time Window Process Function
     //ProcessWindowFunction<IN, OUT, KEY, W extends Window>
     public static class TimeWindowProcessFunction extends ProcessWindowFunction<Point, Tuple5<String, Integer, Long, Long, HashMap<Integer, Long>>, String, TimeWindow> {
@@ -507,7 +508,9 @@ public class MovingFeatures implements Serializable {
         }
     }
 
-    /*
+     */
+
+
 
     //Time Window Process Function
     //ProcessWindowFunction<IN, OUT, KEY, W extends Window>
@@ -620,6 +623,4 @@ public class MovingFeatures implements Serializable {
             }
         }
     }
-
-     */
 }

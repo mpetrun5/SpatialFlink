@@ -163,17 +163,17 @@ public class StreamingJob implements Serializable {
 //		double maxY = 35.6195177;
 
 		// Boundaries for Taxi Drive dataset and synthetic10M10KTrajectories
-		double minX = 115.50000;     //X - East-West longitude
-		double maxX = 117.60000;
-		double minY = 39.60000;     //Y - North-South latitude
-		double maxY = 41.10000;
+		//double minX = 115.50000;     //X - East-West longitude
+		//double maxX = 117.60000;
+		//double minY = 39.60000;     //Y - North-South latitude
+		//double maxY = 41.10000;
 
 		UniformGrid uGrid;
 
 		// Defining Grid
-		uGrid = new UniformGrid(gRows, minX, maxX, minY, maxY);
+		// uGrid = new UniformGrid(gRows, minX, maxX, minY, maxY);
 
-		/*
+
 		// Angular UGrid
 		if (cellLengthDesired > 0 && gridAngle != 0 && (gRows > 0 || gColumns > 0)){  // gridAngle removed for the sake of demo only
 			uGrid = new UniformGrid(gridPointCoordinatesArr, gridAngle, cellLengthDesired, gRows, gColumns);
@@ -187,7 +187,7 @@ public class StreamingJob implements Serializable {
 		else{
 			uGrid = new UniformGrid(10, inputCoordinatesArr);
 		}
-		*/
+
 
 		// Preparing Kafka Connection to Get Stream Tuples
 		Properties kafkaProperties = new Properties();

@@ -24,6 +24,8 @@
   <component name="ChangeListManager">
     <list default="true" id="1324c6e9-e930-41b7-8e36-209d061d1d70" name="Default Changelist" comment="Changed input data format">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/StreamingJob.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/GeoFlink/apps/MovingFeatures.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,7 +73,7 @@
       <option name="ALTERNATIVE_JRE_PATH" value="11" />
       <option name="MAIN_CLASS_NAME" value="GeoFlink.StreamingJob" />
       <module name="GeoFlinkProject" />
-      <option name="PROGRAM_PARAMETERS" value="--queryOption &quot;stayTimeAngularGrid&quot; --inputs &quot;{movingObjTopics: [GeoJSONwithCRS], sensorTopics: [MovingFeatures2]}&quot; --output &quot;outputTopic&quot; --queryId &quot;Q1&quot; --sensorRadius &quot;0.0005&quot; --aggregate &quot;SUM&quot; --cellLength &quot;100&quot; --wType &quot;TIME&quot; --wInterval &quot;100&quot; --wStep &quot;10&quot; --gType &quot;Polygon&quot; --gCoordinates &quot;{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}&quot; --gPointCoordinates &quot;{coordinates: [115.50000, 39.60000]}&quot; --GCSCoordinates &quot;true&quot; --gRows 100 --gColumns 20 --gAngle 0" />
+      <option name="PROGRAM_PARAMETERS" value="--queryOption &quot;stayTimeAngularGrid&quot; --inputs &quot;{movingObjTopics: [GeoJSONwithCRS], sensorTopics: [MovingFeatures2]}&quot; --output &quot;outputTopic&quot; --queryId &quot;Q1&quot; --sensorRadius &quot;0.0005&quot; --aggregate &quot;SUM&quot; --cellLength &quot;100&quot; --wType &quot;TIME&quot; --wInterval &quot;100&quot; --wStep &quot;10&quot; --gType &quot;Polygon&quot; --gCoordinates &quot;{coordinates: [[[115.50000, 39.60000], [115.50000, 41.10000], [117.60000, 41.10000],[117.60000, 39.60000], [115.50000, 39.60000]]]}&quot; --gPointCoordinates &quot;{coordinates: [-5061.771566548391,-42385.84023166007]}&quot; --GCSCoordinates &quot;true&quot; --gRows 100 --gColumns 20 --gAngle 0" />
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="GeoFlink.*" />
@@ -133,6 +135,10 @@
         <breakpoint enabled="true" type="java-exception">
           <properties class="java.util.ConcurrentModificationException" package="java.util" />
           <option name="timeStamp" value="5" />
+        </breakpoint>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="java.lang.NumberFormatException" package="java.lang" />
+          <option name="timeStamp" value="6" />
         </breakpoint>
       </breakpoints>
     </breakpoint-manager>
