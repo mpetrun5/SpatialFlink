@@ -507,6 +507,7 @@ public class MovingFeatures implements Serializable {
         }
     }
 
+    /*
 
     //Time Window Process Function
     //ProcessWindowFunction<IN, OUT, KEY, W extends Window>
