@@ -426,6 +426,14 @@ public class StreamingJob implements Serializable {
 
 		// Converting GeoJSON,CSV stream to point spatial data stream
 		//DataStream<Point> spatialTrajectoryStream = SpatialStream.TrajectoryStream(inputStream, inputFormat, inputDateFormat, uGrid);
+		QueryConfiguration realtimeConf = new QueryConfiguration(QueryType.RealTime);
+		realtimeConf.setApproximateQuery(approximateQuery);
+				
+		QueryConfiguration windowConf = new QueryConfiguration(QueryType.WindowBased);
+		windowConf.setApproximateQuery(approximateQuery);
+		windowConf.setAllowedLateness(allowedLateness);
+		windowConf.setWindowSize(windowSize);
+		windowConf.setSlideStep(windowSlideStep);
 
 		switch(queryOption) {
 
@@ -435,7 +443,7 @@ public class StreamingJob implements Serializable {
 				//DataStream<Point> spatialPointStream = SpatialStream.PointStream(geoJSONStream, inputFormat, uGrid);
 				DataStream<Point> spatialPointStream = Deserialization.TrajectoryStream(geoJSONStream, inputFormat, inputDateFormat, "timestamp", "oID", uGrid);
 				//DataStream<Point> rNeighbors = RangeQuery.PointRangeQueryIncremental(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);
-				DataStream<Point> rNeighbors = new PointPointRangeQuery().windowQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);
+				DataStream<Point> rNeighbors = new PointPointRangeQuery(windowConf, uGrid).run(spatialPointStream, qPoint, radius);
 				//rNeighbors.print();
 				//DataStream<Point> rNeighbors= RangeQuery.PointRangeQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep);  // better than equivalent GB approach
 				//rNeighbors.print();
@@ -444,7 +452,9 @@ public class StreamingJob implements Serializable {
 				DataStream geoJSONStream  = env.addSource(new FlinkKafkaConsumer<>(inputTopicName, new JSONKeyValueDeserializationSchema(false), kafkaProperties).setStartFromEarliest());
 				// Converting GeoJSON,CSV stream to point spatial data stream
 				DataStream<Point> spatialPointStream = Deserialization.TrajectoryStream(geoJSONStream, inputFormat, inputDateFormat, "timestamp", "oID", uGrid);
-				DataStream<Point> rNeighbors = new PointPointRangeQuery().realtimeQuery(spatialPointStream, qPoint, radius, uGrid, approximateQuery);
+				//DataStream<Point> rNeighbors = new PointPointRangeQuery().realtimeQuery(spatialPointStream, qPoint, radius, uGrid, approximateQuery);
+				DataStream<Point> rNeighbors = new PointPointRangeQuery(realtimeConf, uGrid).run(spatialPointStream, qPoint, radius);
+
 				//rNeighbors.print();
 				break;}
 
@@ -1272,7 +1282,8 @@ public class StreamingJob implements Serializable {
 				// Converting GeoJSON,CSV stream to point spatial data stream
 				DataStream<Point> spatialPointStream = Deserialization.PointStream(geoJSONStream, "CSV", uGrid);
 				spatialPointStream.print();
-				DataStream<Point> rNeighbors= new PointPointRangeQuery().windowQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);  // better than equivalent GB approach
+				//DataStream<Point> rNeighbors= new PointPointRangeQuery().windowQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);  // better than equivalent GB approach
+				DataStream<Point> rNeighbors = new PointPointRangeQuery(windowConf, uGrid).run(spatialPointStream, qPoint, radius);
 				rNeighbors.print();
 				break;}
 			case 502:{ // Range Query (CSV Polygon)
@@ -1311,7 +1322,8 @@ public class StreamingJob implements Serializable {
 				// Converting GeoJSON,CSV stream to point spatial data stream
 				DataStream<Point> spatialPointStream = Deserialization.PointStream(geoJSONStream, "TSV", uGrid);
 				spatialPointStream.print();
-				DataStream<Point> rNeighbors= new PointPointRangeQuery().windowQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);  // better than equivalent GB approach
+				//DataStream<Point> rNeighbors= new PointPointRangeQuery().windowQuery(spatialPointStream, qPoint, radius, uGrid, windowSize, windowSlideStep, allowedLateness, approximateQuery);  // better than equivalent GB approach
+				DataStream<Point> rNeighbors = new PointPointRangeQuery(windowConf, uGrid).run(spatialPointStream, qPoint, radius);
 				rNeighbors.print();
 				break;}
 			case 602:{ // Range Query (TSV Polygon)

@@ -27,10 +27,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 
-import java.io.Serializable;
 import java.util.*;
 
-public class UniformGrid implements Serializable {
+public class UniformGrid implements SpatialIndex {
 
     double minX;     //X - East-West longitude
     double maxX;
