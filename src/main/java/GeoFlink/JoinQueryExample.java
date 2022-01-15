@@ -18,52 +18,29 @@
 
 package GeoFlink;
 
-import GeoFlink.apps.StayTime;
-import GeoFlink.apps.CheckIn;
 import GeoFlink.spatialIndices.UniformGrid;
-import GeoFlink.spatialObjects.*;
-import GeoFlink.spatialOperators.*;
-import GeoFlink.spatialStreams.*;
-import GeoFlink.utils.HelperClass;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import GeoFlink.spatialObjects.Point;
+import GeoFlink.spatialOperators.JoinQuery;
+import GeoFlink.spatialOperators.KNNQuery;
+import GeoFlink.spatialStreams.Deserialization;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.impl.CsvDecoder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
-import org.locationtech.jts.geom.Coordinate;
 import scala.Serializable;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.PriorityQueue;
+import java.util.Properties;
 
-public class RangeQueryExample implements Serializable {
+public class JoinQueryExample implements Serializable {
 
 	public static void main(String[] args) throws Exception {
 		final StreamExecutionEnvironment env;
 		env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(30);
 
 		// Preparing Kafka Connection to Get Stream Tuples
@@ -81,13 +58,14 @@ public class RangeQueryExample implements Serializable {
 
 		// Generating stream
 		DataStream<String> inputStream  = env.addSource(new FlinkKafkaConsumer("GeoLife", new JSONKeyValueDeserializationSchema(false), kafkaProperties));
-		DataStream<Point> spatialPointStream = Deserialization.PointStream(inputStream, "GeoJSON", uGrid);
+		DataStream<Point> originalStream = Deserialization.PointStream(inputStream, "GeoJSON", uGrid);
+		DataStream<String> inputQueryStream  = env.addSource(new FlinkKafkaConsumer("QueryData", new JSONKeyValueDeserializationSchema(false), kafkaProperties));
+		DataStream<Point> queryStream = Deserialization.PointStream(inputQueryStream, "GeoJSON", uGrid);
 
-		Point qPoint = new Point(116.14319183444924, 40.07271444145411, uGrid);
-		double queryRadius = 0.5;
+		double queryRadius = 1;
 
-		DataStream<Point> neighbors = RangeQuery.PointRangeQuery(spatialPointStream, qPoint, queryRadius, uGrid, true);
-		neighbors.print();
+		DataStream outputStream = JoinQuery.PointJoinQuery(originalStream, queryStream, queryRadius, 10, uGrid, uGrid, 5, true);
+		outputStream.print();
 
 		env.execute("GeoFlink");
 	}
